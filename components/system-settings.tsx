@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -41,8 +41,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { useRouter } from "next/navigation"
 
 export default function SystemSettings() {
+  const router = useRouter()
   const [settings, setSettings] = useState({
     defaultLanguage: "en",
     systemVersion: "2.1.0",
@@ -58,8 +60,10 @@ export default function SystemSettings() {
     securityAnswer: "",
   })
 
+  const [showPasswordChange, setShowPasswordChange] = useState(false)
+
   const [languageSettings, setLanguageSettings] = useState({
-    enabledLanguages: ["en", "am", "om"],
+    enabledLanguages: ["en", "am"],
     fallbackLanguage: "en",
   })
 
@@ -81,7 +85,6 @@ export default function SystemSettings() {
   const availableLanguages = [
     { code: "en", name: "English" },
     { code: "am", name: "Amharic" },
-    { code: "om", name: "Afaan Oromo" },
   ]
 
   const timezones = [
@@ -213,6 +216,16 @@ export default function SystemSettings() {
     console.log("Changing password...")
     alert("Password changed successfully!")
     setAdminCredentials((prev) => ({ ...prev, currentPassword: "", newPassword: "", confirmPassword: "" }))
+    setShowPasswordChange(false)
+  }
+
+  const handleShowPasswordChange = () => {
+    setShowPasswordChange(true)
+  }
+
+  const handleCancelPasswordChange = () => {
+    setShowPasswordChange(false)
+    setAdminCredentials((prev) => ({ ...prev, currentPassword: "", newPassword: "", confirmPassword: "" }))
   }
 
   const handleSystemBackup = () => {
@@ -223,7 +236,12 @@ export default function SystemSettings() {
     alert("System cache cleared successfully!")
   }
 
-
+  useEffect(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem('isAuthenticated') !== 'true') {
+      router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname)}`)
+      return
+    }
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -231,176 +249,97 @@ export default function SystemSettings() {
       {/* Admin Credentials */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="w-5 h-5" />
+          <CardTitle>
             Admin Credentials
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="adminUsername">Admin Username</Label>
-              <Input
-                id="adminUsername"
-                value={adminCredentials.adminUsername}
-                onChange={(e) => handleCredentialChange("adminUsername", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={adminCredentials.currentPassword}
-                onChange={(e) => handleCredentialChange("currentPassword", e.target.value)}
-                placeholder="Enter current password"
-              />
-            </div>
-            <div>
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={adminCredentials.newPassword}
-                onChange={(e) => handleCredentialChange("newPassword", e.target.value)}
-                placeholder="Enter new password"
-              />
-            </div>
-            <div>
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={adminCredentials.confirmPassword}
-                onChange={(e) => handleCredentialChange("confirmPassword", e.target.value)}
-                placeholder="Confirm new password"
-              />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="securityQuestion">Security Question</Label>
-            <Input
-              id="securityQuestion"
-              value={adminCredentials.securityQuestion}
-              onChange={(e) => handleCredentialChange("securityQuestion", e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="securityAnswer">Security Answer</Label>
-            <Input
-              id="securityAnswer"
-              value={adminCredentials.securityAnswer}
-              onChange={(e) => handleCredentialChange("securityAnswer", e.target.value)}
-              placeholder="Enter security answer"
-            />
-          </div>
-          <Button onClick={handleChangePassword} className="bg-[#EF842D] hover:bg-[#D67324]">
-            <Key className="w-4 h-4 mr-2" />
-            Change Password
-          </Button>
-        </CardContent>
-      </Card>
-
-
-
-
-
-
-
-
-
-      {/* General Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            General Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="systemTitle">System Title</Label>
-              <Input
-                id="systemTitle"
-                value={generalSettings.systemTitle}
-                onChange={(e) => handleGeneralSettingsChange("systemTitle", e.target.value)}
-                placeholder="Enter system name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="timezone">Timezone</Label>
-              <Select
-                value={generalSettings.timezone}
-                onValueChange={(value) => handleGeneralSettingsChange("timezone", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {timezones.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="logoUpload">Logo Upload</Label>
-              <div className="flex gap-2">
+          {!showPasswordChange && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="adminUsername">Admin Username</Label>
                 <Input
-                  id="logoUpload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  className="flex-1"
+                  id="adminUsername"
+                  value={adminCredentials.adminUsername}
+                  onChange={(e) => handleCredentialChange("adminUsername", e.target.value)}
                 />
-                {generalSettings.logoUrl && (
-                  <div className="w-10 h-10 rounded border overflow-hidden">
-                    <img src={generalSettings.logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                  </div>
-                )}
               </div>
             </div>
-          </div>
+          )}
           
-
+          {!showPasswordChange ? (
+            <Button onClick={handleShowPasswordChange} className="bg-[#EF842D] hover:bg-[#D67324]">
+              Change Password
+            </Button>
+          ) : (
+            <>
+              <div className="space-y-4">
+                <h4 className="font-medium text-deep-forest">Password Management</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={adminCredentials.currentPassword}
+                      onChange={(e) => handleCredentialChange("currentPassword", e.target.value)}
+                      placeholder="Enter current password"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={adminCredentials.newPassword}
+                      onChange={(e) => handleCredentialChange("newPassword", e.target.value)}
+                      placeholder="Enter new password"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={adminCredentials.confirmPassword}
+                      onChange={(e) => handleCredentialChange("confirmPassword", e.target.value)}
+                      placeholder="Confirm new password"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleChangePassword} className="bg-[#EF842D] hover:bg-[#D67324]">
+                    Change Password
+                  </Button>
+                  <Button variant="outline" onClick={handleCancelPasswordChange}>
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
+
+
+
+
+
+
+
+
 
       {/* Language Settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Languages className="w-5 h-5" />
+          <CardTitle>
             Language Settings
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-            <div>
-              <Label htmlFor="fallbackLanguage">Fallback Language</Label>
-              <Select
-                value={languageSettings.fallbackLanguage}
-                onValueChange={(value) => handleLanguageChange("fallbackLanguage", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableLanguages.map((lang) => (
-                    <SelectItem key={lang.code} value={lang.code}>
-                      {lang.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-          </div>
+              </div>
 
           <div>
             <Label>Enabled Languages</Label>
@@ -424,235 +363,8 @@ export default function SystemSettings() {
         </CardContent>
       </Card>
 
-      {/* Data Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="w-5 h-5" />
-            Data Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-4">
-              <div>
-                <Label>Export Data</Label>
-                <p className="text-sm text-gray-600 mb-2">Download all system settings as JSON</p>
-                <Button onClick={handleExportData} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Settings
-                </Button>
-                {dataManagement.lastExport && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Last exported: {new Date(dataManagement.lastExport).toLocaleString()}
-                  </p>
-                )}
-              </div>
-              
-              <div>
-                <Label>Import Data</Label>
-                <p className="text-sm text-gray-600 mb-2">Upload settings from JSON file</p>
-                <Input
-                  type="file"
-                  accept=".json"
-                  onChange={handleImportData}
-                  className="mb-2"
-                />
-                {dataManagement.lastImport && (
-                  <p className="text-xs text-gray-500">
-                    Last imported: {new Date(dataManagement.lastImport).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <Label>Backup System</Label>
-                <p className="text-sm text-gray-600 mb-2">Create a complete system backup</p>
-                <Button onClick={handleBackup} variant="outline">
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Create Backup
-                </Button>
-                {dataManagement.lastBackup && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Last backup: {new Date(dataManagement.lastBackup).toLocaleString()}
-                  </p>
-                )}
-              </div>
-              
-              <div>
-                <Label>Restore from Backup</Label>
-                <p className="text-sm text-gray-600 mb-2">Restore system from backup file</p>
-                <Input
-                  type="file"
-                  accept=".json"
-                  onChange={handleRestore}
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Danger Zone */}
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-700">
-            <AlertTriangle className="w-5 h-5" />
-            Danger Zone
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="destructive" className="w-full">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Reset All Data
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Reset All Data</DialogTitle>
-                  <DialogDescription>
-                    This action will permanently delete all system data including departments, 
-                    locations, and settings. This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => {
-                    const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLButtonElement
-                    closeButton?.click()
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={() => {
-                      alert("All data has been reset!")
-                      const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLButtonElement
-                      closeButton?.click()
-                    }}
-                  >
-                    Reset All Data
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
 
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="destructive" className="w-full">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete All Departments
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete All Departments</DialogTitle>
-                  <DialogDescription>
-                    This action will permanently delete all departments and their associated data. 
-                    This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => {
-                    const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLButtonElement
-                    closeButton?.click()
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={() => {
-                      alert("All departments have been deleted!")
-                      const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLButtonElement
-                      closeButton?.click()
-                    }}
-                  >
-                    Delete All Departments
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="destructive" className="w-full">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Reset to Default Settings
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Reset to Default Settings</DialogTitle>
-                  <DialogDescription>
-                    This action will reset all system settings to their default values. 
-                    Custom configurations will be lost.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => {
-                    const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLButtonElement
-                    closeButton?.click()
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={() => {
-                      alert("Settings have been reset to defaults!")
-                      const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLButtonElement
-                      closeButton?.click()
-                    }}
-                  >
-                    Reset Settings
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-          
-          <div className="bg-red-100 border border-red-300 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-red-600" />
-              <span className="font-medium text-red-700">Warning</span>
-            </div>
-            <p className="text-sm text-red-600">
-              All actions in this section are irreversible and will permanently delete data. 
-              Please ensure you have proper backups before proceeding.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* System Maintenance */}
-      <Card>
-        <CardHeader>
-          <CardTitle>System Maintenance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label>Last Backup</Label>
-              <p className="text-sm text-gray-600 mb-2">{settings.lastBackup}</p>
-              <Button variant="outline" onClick={handleSystemBackup}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Create Backup
-              </Button>
-            </div>
-            <div>
-              <Label>System Cache</Label>
-              <p className="text-sm text-gray-600 mb-2">Clear cached data and temporary files</p>
-              <Button variant="outline" onClick={handleClearCache}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Clear Cache
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Save Settings */}
       <div className="flex justify-end">

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import Papa from "papaparse"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Edit, Save, X, Building, Trash2, ChevronDown, ChevronRight, FileText } from "lucide-react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 
 interface DepartmentLocation {
   id: string
@@ -29,41 +31,48 @@ interface Block {
 }
 
 export default function BlockManager() {
-  const [blocks, setBlocks] = useState<Block[]>([
-    {
-      id: "1",
-      name: "Block A", // Changed from "Block One"
-      description: "Primary administrative and executive offices.",
-      departments: [
-        { id: "dept1", name: "Human Resources", building: "Building A", floor: "2nd Floor", officeNumber: "201" },
-        { id: "dept3", name: "Finance Department", building: "Building A", floor: "1st Floor", officeNumber: "105" },
-      ],
-    },
-    {
-      id: "2",
-      name: "Block B", // Changed from "Block Two"
-      description: "IT and operational support departments.",
-      departments: [
-        {
-          id: "dept2",
-          name: "Information Technology",
-          building: "Building B",
-          floor: "3rd Floor",
-          officeNumber: "305",
-        },
-        { id: "dept4", name: "Operations", building: "Building B", floor: "Ground Floor", officeNumber: "001" },
-      ],
-    },
-    {
-      id: "3",
-      name: "Block C", // Changed from "Block Three"
-      description: "Marketing and Legal departments.",
-      departments: [
-        { id: "dept5", name: "Marketing", building: "Building C", floor: "4th Floor", officeNumber: "410" },
-        { id: "dept6", name: "Legal Affairs", building: "Building A", floor: "3rd Floor", officeNumber: "301" },
-      ],
-    },
-  ])
+  const router = useRouter()
+  const [blocks, setBlocks] = useState<Block[]>([])
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem('isAuthenticated') !== 'true') {
+      router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname)}`)
+      return
+    }
+
+    async function fetchBlocks() {
+      try {
+        const res = await fetch('/api/departments')
+        if (!res.ok) throw new Error('Failed to fetch CSV')
+        const csvText = await res.text()
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true })
+        // Group departments by block
+        const blockMap: { [block: string]: Block } = {}
+        parsed.data.forEach((row: any, idx: number) => {
+          const blockName = row.block || row.building || 'Unknown Block'
+          if (!blockMap[blockName]) {
+            blockMap[blockName] = {
+              id: blockName,
+              name: blockName,
+              description: '',
+              departments: [],
+            }
+          }
+          blockMap[blockName].departments.push({
+            id: row.id || (idx + 1).toString(),
+            name: row.department || row.name || '',
+            building: blockName,
+            floor: row.floor || '',
+            officeNumber: row.officeno || row.officeNumber || '',
+          })
+        })
+        setBlocks(Object.values(blockMap))
+      } catch (err) {
+        console.error('Error fetching blocks:', err)
+      }
+    }
+    fetchBlocks()
+  }, [])
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Block>>({})
@@ -78,15 +87,23 @@ export default function BlockManager() {
     departments: [],
   })
 
-  // Dummy data for available departments with location details
-  const availableDepartments: DepartmentLocation[] = [
-    { id: "dept1", name: "Human Resources", building: "Building A", floor: "2nd Floor", officeNumber: "201" },
-    { id: "dept2", name: "Information Technology", building: "Building B", floor: "3rd Floor", officeNumber: "305" },
-    { id: "dept3", name: "Finance Department", building: "Building A", floor: "1st Floor", officeNumber: "105" },
-    { id: "dept4", name: "Operations", building: "Building B", floor: "Ground Floor", officeNumber: "001" },
-    { id: "dept5", name: "Marketing", building: "Building C", floor: "4th Floor", officeNumber: "410" },
-    { id: "dept6", name: "Legal Affairs", building: "Building A", floor: "3rd Floor", officeNumber: "301" },
-  ]
+  // Departments fetched from CSV for use in add/edit forms
+  const [availableDepartments, setAvailableDepartments] = useState<DepartmentLocation[]>([])
+
+  // Extract all unique departments from CSV data after blocks are loaded
+  useEffect(() => {
+    // Flatten all departments from all blocks
+    const allDepts: DepartmentLocation[] = []
+    blocks.forEach((block) => {
+      block.departments.forEach((dept) => {
+        // Avoid duplicates by id
+        if (!allDepts.some((d) => d.id === dept.id)) {
+          allDepts.push(dept)
+        }
+      })
+    })
+    setAvailableDepartments(allDepts)
+  }, [blocks])
 
   const handleEdit = (block: Block) => {
     setEditingId(block.id)
@@ -155,20 +172,31 @@ export default function BlockManager() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="new-name" className="text-deep-forest">Block Name</Label>
+                <Label htmlFor="new-name" className="mb-2 text-deep-forest">Block Name</Label>
                 <Input
                   id="new-name"
                   value={newBlock.name || ""}
                   onChange={(e) => setNewBlock((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter block name (e.g., East Wing, Tower 1)"
-                  className="border-deep-forest/30 focus:border-bronze focus:ring-bronze/20"
+                  placeholder="Enter block name"
+                  className="bg-white border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1"
                 />
               </div>
               <div>
                 <Label className="text-deep-forest">Add Department</Label>
-                <Select>
-                  <SelectTrigger className="bg-white border-deep-forest/30 text-deep-forest focus:border-bronze focus:ring-bronze/20">
-                    <SelectValue placeholder="Select department to add" />
+                <Select
+                  value={newBlock.departments && newBlock.departments.length > 0 ? newBlock.departments[0].id : ""}
+                  onValueChange={(deptId) => {
+                    const dept = availableDepartments.find((d) => d.id === deptId)
+                    if (dept) {
+                      setNewBlock((prev) => ({
+                        ...prev,
+                        departments: [dept],
+                      }))
+                    }
+                  }}
+                >
+                  <SelectTrigger className="bg-white border-deep-forest/30 text-deep-forest focus:border-bronze focus:ring-bronze/20 mt-1">
+                    <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-deep-forest/20">
                     {availableDepartments.map((dept) => (
@@ -180,29 +208,21 @@ export default function BlockManager() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="new-description" className="text-deep-forest">Description</Label>
-              <Textarea
-                id="new-description"
-                value={newBlock.description || ""}
-                onChange={(e) => setNewBlock((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="Brief description of the block"
-                rows={3}
-                className="border-deep-forest/30 focus:border-bronze focus:ring-bronze/20"
-              />
-            </div>
-              <div>
-                {/* Empty div to maintain grid alignment */}
-              </div>
-            </div>
             <div className="flex gap-2 justify-end">
-              <Button onClick={handleAddBlock} className="bg-bronze hover:bg-bronze/90 text-white">
-                <Save className="w-4 h-4 mr-2" />
+              <Button onClick={handleAddBlock} className="bg-bronze hover:bg-bronze/90 text-white min-w-[160px]">
+                <Save className="w-4 h-4 mr-6" />
                 Add Block
               </Button>
-              <Button variant="outline" onClick={() => setShowAddForm(false)} className="border-deep-forest/30 text-deep-forest hover:bg-deep-forest/5 hover:text-deep-forest">
-                <X className="w-4 h-4 mr-2" />
+              <Button
+                type="button"
+                variant="outline"
+                className="border-deep-forest/30 text-deep-forest hover:bg-deep-forest hover:text-alabaster min-w-[160px]"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewBlock({ name: "", description: "", departments: [] });
+                }}
+              >
+                <X className="w-4 h-4 mr-6" />
                 Cancel
               </Button>
             </div>
@@ -212,7 +232,9 @@ export default function BlockManager() {
 
       {/* Blocks List */}
       <div className="space-y-4">
-        {blocks.map((block) => (
+        {blocks
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((block) => (
           <Card key={block.id} className="bg-alabaster border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors shadow-lg">
             <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -222,14 +244,14 @@ export default function BlockManager() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowDepartments(showDepartments === block.id ? null : block.id)}
-                      className="p-1 text-bronze hover:text-bronze/80"
+                      className="p-1 text-bronze hover:[&>svg]:text-alabaster"
                     >
                       {showDepartments === block.id ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                  </Button>
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </Button>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center">
                       <Image src="/era-logo.png" alt="ERA Logo" width={32} height={32} className="object-contain" />
                   </div>
@@ -339,38 +361,37 @@ export default function BlockManager() {
                         <Input
                           value={editForm.name || ""}
                           onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
-                            placeholder="Enter block name"
-                          />
-                        </div>
-                        <div>
-                          <Label>Add Department</Label>
-                          <Select>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select department to add" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableDepartments.map((dept) => (
-                                <SelectItem key={dept.id} value={dept.id}>
-                                  {dept.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                          placeholder="Enter block name"
+                          className="bg-white mt-1 border-deep-forest/30 text-deep-forest focus:border-bronze focus:ring-bronze/20"
+                        />
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Description</Label>
-                      <Textarea
-                        value={editForm.description || ""}
-                        onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
-                            placeholder="Enter block description"
-                        rows={3}
-                      />
-                        </div>
-                          <div>{/* Empty div to maintain grid alignment */}</div>
+                      <div>
+                        <Label>Add Department</Label>
+                        <Select
+                          value={editForm.departments && editForm.departments.length > 0 ? editForm.departments[0].id : ""}
+                          onValueChange={(deptId) => {
+                            const dept = availableDepartments.find((d) => d.id === deptId)
+                            if (dept) {
+                              setEditForm((prev) => ({
+                                ...prev,
+                                departments: [dept],
+                              }))
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="bg-white border-deep-forest/30 text-deep-forest focus:border-bronze focus:ring-bronze/20 mt-1">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border-deep-forest/20">
+                            {availableDepartments.map((dept) => (
+                              <SelectItem key={dept.id} value={dept.id} className="text-deep-forest hover:bg-bronze/10">
+                                {dept.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <Separator />
                       {/* Show all custom fields for this block */}
                       {editForm.fields && Object.entries(editForm.fields).map(([key, value]) => (
                         <div key={key} className="col-span-1">
@@ -387,21 +408,7 @@ export default function BlockManager() {
                         </div>
                       ))}
                     <div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {editForm.departments?.map((dept) => (
-                          <Badge key={dept.id} variant="outline" className="text-xs">
-                            {dept.name}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="ml-1 h-4 w-4 p-0"
-                              onClick={() => removeDepartmentFromBlock(block.id, dept.id)}
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </Badge>
-                        ))}
-                      </div>
+                      {/* Department text field removed as requested */}
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2 mt-6 sm:justify-between">
                         <div className="flex gap-2">
@@ -488,7 +495,9 @@ export default function BlockManager() {
                       <Label className="text-sm font-medium">Departments in this Block:</Label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
                         {block.departments.length > 0 ? (
-                          block.departments.map((dept) => (
+                          block.departments
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((dept) => (
                             <div key={dept.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
                               <Building className="w-4 h-4 text-[#EF842D]" />
                               <div>

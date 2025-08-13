@@ -1,35 +1,49 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LayoutGrid, LogOut, Users, Settings, Building } from "lucide-react"
+import { LayoutGrid, LogOut, Users, Settings, Building, MessageSquare } from "lucide-react"
 import { MdAccountTree } from "react-icons/md"
 import DepartmentManager from "./components/department-manager"
 import SystemSettings from "./components/system-settings"
 import BlockManager from "./components/block-manager"
 import PersonnelManager from "./components/personnel-manager"
+import CommentsManager from "./components/comments-manager"
 import Image from "next/image"
 
 interface AdminDashboardProps {
   onLogout?: () => void
 }
 
+
+
+
 export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState("departments")
+  const router = useRouter();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const initialTab = searchParams?.get('tab') || "departments";
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   useEffect(() => {
-    // Component mounted successfully
-  }, [])
+    // When tab changes, update the URL
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      params.set('tab', activeTab);
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [activeTab]);
 
   const handleLogout = () => {
-    if (onLogout) {
-      onLogout()
-    } else {
-      window.location.reload()
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('isAuthenticated');
+      sessionStorage.removeItem('username');
+      window.location.href = '/login';
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -59,7 +73,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       {/* Main Content */}
       <div className="p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4 bg-alabaster border border-deep-forest/20 shadow-lg rounded-none">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-5 bg-alabaster border border-deep-forest/20 shadow-lg rounded-none">
             <TabsTrigger 
               value="departments" 
               className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-white data-[state=active]:bg-bronze data-[state=active]:text-white rounded-none"
@@ -80,6 +94,13 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             >
               <Users className="w-4 h-4" />
               Personnel
+            </TabsTrigger>
+            <TabsTrigger 
+              value="comments" 
+              className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-white data-[state=active]:bg-bronze data-[state=active]:text-white rounded-none"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Comments
             </TabsTrigger>
             <TabsTrigger 
               value="settings" 
@@ -114,6 +135,14 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </Card>
           </TabsContent>
 
+          <TabsContent value="comments" className="space-y-6">
+            <Card>
+              <CardContent className="pt-10">
+                <CommentsManager />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="settings" className="space-y-6">
             <Card>
               <CardHeader>
@@ -128,5 +157,5 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }
