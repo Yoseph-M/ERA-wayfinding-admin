@@ -163,67 +163,67 @@ export default function DepartmentManager() {
   const [floorOptions, setFloorOptions] = useState<string[]>([])
   const [officeOptions, setOfficeOptions] = useState<string[]>([])
 
+  async function fetchDepartments() { // Moved here
+    try {
+      setIsLoading(true)
+      setError(null)
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`) // Updated fetch call
+      if (!res.ok) throw new Error('Failed to fetch departments')
+      const csvText = await res.text()
+      const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true })
+      // Map CSV rows to Department objects, generating an id if missing
+      const departments = parsed.data.map((row: any, idx: number) => ({
+        id: row.id || (idx + 1).toString(),
+        name: row.department || row.name || '',
+        floor: row.floor || '',
+        officeNumber: row.officeno || row.officeNumber || '',
+        building: row.block || row.building || '',
+        // Add more fields here if needed
+      }))
+      setDepartments(departments)
+      // Extract unique options for dropdowns and sort them
+      // Block: sort alphabetically
+      const blockSet = new Set(parsed.data.map((row: any) => row.block || row.building || '').filter((v: string) => v && v.trim() !== ''))
+      const blockArr = Array.from(blockSet).sort((a, b) => a.localeCompare(b))
+      setBlockOptions(blockArr)
+
+      // Floor: sort numerically ascending
+      const floorSet = new Set(parsed.data.map((row: any) => row.floor || '').filter((v: string) => v && v.trim() !== ''))
+      const floorArr = Array.from(floorSet).sort((a, b) => {
+        const aNum = parseFloat(a)
+        const bNum = parseFloat(b)
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum
+        if (!isNaN(aNum)) return -1
+        if (!isNaN(bNum)) return 1
+        return a.localeCompare(b)
+      })
+      setFloorOptions(floorArr)
+
+      // Office: sort numerically ascending
+      const officeSet = new Set(parsed.data.map((row: any) => row.officeno || row.officeNumber || '').filter((v: string) => v && v.trim() !== ''))
+      const officeArr = Array.from(officeSet).sort((a, b) => {
+        const aNum = parseFloat(a)
+        const bNum = parseFloat(b)
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum
+        if (!isNaN(aNum)) return -1
+        if (!isNaN(bNum)) return 1
+        return a.localeCompare(b)
+      })
+      setOfficeOptions(officeArr)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred')
+      console.error('Error fetching departments:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (typeof window !== "undefined" && sessionStorage.getItem('isAuthenticated') !== 'true') {
       router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname)}`)
       return
     }
-
-    async function fetchDepartments() {
-      try {
-        setIsLoading(true)
-        setError(null)
-        const res = await fetch('/api/departments')
-        if (!res.ok) throw new Error('Failed to fetch departments')
-        const csvText = await res.text()
-        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true })
-        // Map CSV rows to Department objects, generating an id if missing
-        const departments = parsed.data.map((row: any, idx: number) => ({
-          id: row.id || (idx + 1).toString(),
-          name: row.department || row.name || '',
-          floor: row.floor || '',
-          officeNumber: row.officeno || row.officeNumber || '',
-          building: row.block || row.building || '',
-          // Add more fields here if needed
-        }))
-        setDepartments(departments)
-        // Extract unique options for dropdowns and sort them
-        // Block: sort alphabetically
-        const blockSet = new Set(parsed.data.map((row: any) => row.block || row.building || '').filter((v: string) => v && v.trim() !== ''))
-        const blockArr = Array.from(blockSet).sort((a, b) => a.localeCompare(b))
-        setBlockOptions(blockArr)
-
-        // Floor: sort numerically ascending
-        const floorSet = new Set(parsed.data.map((row: any) => row.floor || '').filter((v: string) => v && v.trim() !== ''))
-        const floorArr = Array.from(floorSet).sort((a, b) => {
-          const aNum = parseFloat(a)
-          const bNum = parseFloat(b)
-          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum
-          if (!isNaN(aNum)) return -1
-          if (!isNaN(bNum)) return 1
-          return a.localeCompare(b)
-        })
-        setFloorOptions(floorArr)
-
-        // Office: sort numerically ascending
-        const officeSet = new Set(parsed.data.map((row: any) => row.officeno || row.officeNumber || '').filter((v: string) => v && v.trim() !== ''))
-        const officeArr = Array.from(officeSet).sort((a, b) => {
-          const aNum = parseFloat(a)
-          const bNum = parseFloat(b)
-          if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum
-          if (!isNaN(aNum)) return -1
-          if (!isNaN(bNum)) return 1
-          return a.localeCompare(b)
-        })
-        setOfficeOptions(officeArr)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error occurred')
-        console.error('Error fetching departments:', err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchDepartments()
+    fetchDepartments() // Call it here
   }, [])
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -317,7 +317,7 @@ export default function DepartmentManager() {
             floor: editForm.floor,
             officeNumber: editForm.officeNumber
           };
-          const res = await fetch('/api/departments', {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatePayload)
@@ -333,6 +333,7 @@ export default function DepartmentManager() {
           setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
           fetchDepartments()
         } catch (err) {
+          console.error('Frontend Error updating department:', err);
           alert('Error updating department')
         }
       }
@@ -370,7 +371,7 @@ export default function DepartmentManager() {
       return
     }
     try {
-      const res = await fetch('/api/departments', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newDepartment)
@@ -394,7 +395,7 @@ export default function DepartmentManager() {
       cancelText: "Discard",
       onConfirm: async () => {
         try {
-          const res = await fetch('/api/departments', {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id })
