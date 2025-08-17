@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Papa from "papaparse"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +13,7 @@ import { Plus, Edit, Save, X, MapPin, Phone, Mail, User, Map, ImageIcon, Trash2,
 import { FiGrid } from "react-icons/fi"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { useDebounce } from "@/hooks/use-debounce"
 
 type Language = "en" | "am"
 
@@ -139,10 +139,18 @@ function ConfirmDialog({
 
 interface Department {
   id: string
-  name: string
+  name: string // maps to department
+  departmentamh?: string // maps to departmentamh
   floor: string
-  officeNumber: string
-  building: string
+  officeNumber: string // maps to officeno
+  building: string // maps to block
+  decat?: string
+  wcontact?: string
+  wid?: string
+  wname?: string
+  wnameamh?: string
+  wtitle?: string
+  wtitleamh?: string
   language?: string
   fields?: { [key: string]: string }
 }
@@ -153,6 +161,7 @@ export default function DepartmentManager() {
   const [editLanguages, setEditLanguages] = useState<Record<string, Language>>({})
   const [metadataLanguages, setMetadataLanguages] = useState<Record<string, Language>>({})
   const [searchTerm, setSearchTerm] = useState("")
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [departments, setDepartments] = useState<Department[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -167,29 +176,37 @@ export default function DepartmentManager() {
     try {
       setIsLoading(true)
       setError(null)
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`) // Updated fetch call
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/era_data`)
       if (!res.ok) throw new Error('Failed to fetch departments')
-      const csvText = await res.text()
-      const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true })
-      // Map CSV rows to Department objects, generating an id if missing
-      const departments = parsed.data.map((row: any, idx: number) => ({
-        id: row.id || (idx + 1).toString(),
-        name: row.department || row.name || '',
-        floor: row.floor || '',
-        officeNumber: row.officeno || row.officeNumber || '',
-        building: row.block || row.building || '',
-        // Add more fields here if needed
+      const data = await res.json()
+      
+      // Map database rows to Department objects
+      const departments = data.map((row: any) => ({
+        id: row.id.toString(), // Ensure id is string for consistency
+        name: row.department || '',
+        departmentamh: row.departmentamh || '',
+        floor: row.floor ? row.floor.toString() : '',
+        officeNumber: row.officeno ? row.officeno.toString() : '',
+        building: row.block || '',
+        decat: row.decat || '',
+        wcontact: row.wcontact || '',
+        wid: row.wid || '',
+        wname: row.wname || '',
+        wnameamh: row.wnameamh || '',
+        wtitle: row.wtitle || '',
+        wtitleamh: row.wtitleamh || '',
       }))
       setDepartments(departments)
+
       // Extract unique options for dropdowns and sort them
       // Block: sort alphabetically
-      const blockSet = new Set(parsed.data.map((row: any) => row.block || row.building || '').filter((v: string) => v && v.trim() !== ''))
-      const blockArr = Array.from(blockSet).sort((a, b) => a.localeCompare(b))
+      const blockSet = new Set(data.map((row: any) => (row.block || '').toString()).filter((v: string) => v.trim() !== '') as string[])
+      const blockArr = Array.from(blockSet).sort((a: string, b: string) => a.localeCompare(b))
       setBlockOptions(blockArr)
 
       // Floor: sort numerically ascending
-      const floorSet = new Set(parsed.data.map((row: any) => row.floor || '').filter((v: string) => v && v.trim() !== ''))
-      const floorArr = Array.from(floorSet).sort((a, b) => {
+      const floorSet = new Set(data.map((row: any) => (row.floor || '').toString()).filter((v: string) => v.trim() !== '') as string[])
+      const floorArr = Array.from(floorSet).sort((a: string, b: string) => {
         const aNum = parseFloat(a)
         const bNum = parseFloat(b)
         if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum
@@ -200,8 +217,8 @@ export default function DepartmentManager() {
       setFloorOptions(floorArr)
 
       // Office: sort numerically ascending
-      const officeSet = new Set(parsed.data.map((row: any) => row.officeno || row.officeNumber || '').filter((v: string) => v && v.trim() !== ''))
-      const officeArr = Array.from(officeSet).sort((a, b) => {
+      const officeSet = new Set(data.map((row: any) => (row.officeno || '').toString()).filter((v: string) => v.trim() !== '') as string[])
+      const officeArr = Array.from(officeSet).sort((a: string, b: string) => {
         const aNum = parseFloat(a)
         const bNum = parseFloat(b)
         if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum
@@ -210,7 +227,7 @@ export default function DepartmentManager() {
         return a.localeCompare(b)
       })
       setOfficeOptions(officeArr)
-    } catch (err) {
+    } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
       console.error('Error fetching departments:', err)
     } finally {
@@ -228,6 +245,7 @@ export default function DepartmentManager() {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Department>>({})
+  const [originalDepartmentName, setOriginalDepartmentName] = useState<string | null>(null)
   const [newDepartment, setNewDepartment] = useState<Partial<Department>>({
     name: "",
     floor: "",
@@ -275,28 +293,34 @@ export default function DepartmentManager() {
   const iconOptions = ["building", "users", "monitor", "dollar-sign", "phone", "mail", "settings", "shield"]
 
   // Filter departments based on search term
-  const filteredDepartments = departments.filter((dept) => {
+  const filteredDepartments = useMemo(() => departments.filter((dept) => {
+    // Filter out departments with empty or null name
+    if (!dept.name || dept.name.trim() === '') {
+      return false;
+    }
+
     const matchesSearch =
-      searchTerm === "" ||
-      dept.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dept.building.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dept.floor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      dept.officeNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      debouncedSearchTerm === "" ||
+      dept.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      dept.building.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      dept.floor.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      dept.officeNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     
     const matchesBuilding = departmentFilter === "all" || dept.name === departmentFilter
     
     return matchesSearch && matchesBuilding
-  })
+  }), [departments, debouncedSearchTerm, departmentFilter])
 
   const handleEdit = (dept: Department) => {
     setEditingId(dept.id)
     setEditForm({ ...dept })
+    setOriginalDepartmentName(dept.name) // Set original name when editing starts
     setEditLanguages(prev => ({ ...prev, [dept.id]: "en" })) // Initialize language for this record
   }
 
   // UPDATE
   const handleSave = async (id: string) => {
-    if (!editForm.name?.trim() || !editForm.building?.trim() || !editForm.floor?.trim() || !editForm.officeNumber?.trim()) {
+    if (!(editForm.name?.toString() || '').trim() || !(editForm.building?.toString() || '').trim() || !(editForm.floor?.toString() || '').trim() || !(editForm.officeNumber?.toString() || '').trim()) {
       alert("Please fill in all required fields (Department Name, Block, Floor, Office Number) before saving.")
       return
     }
@@ -311,20 +335,30 @@ export default function DepartmentManager() {
         try {
           // Only send flat fields to the backend
           const updatePayload = {
-            id,
-            name: editForm.name,
-            building: editForm.building,
+            id: id,
+            oldDepartment: originalDepartmentName,
+            newDepartment: editForm.name,
+            newDepartmentAmh: editForm.departmentamh,
             floor: editForm.floor,
-            officeNumber: editForm.officeNumber
+            officeNumber: editForm.officeNumber,
+            building: editForm.building,
           };
+          console.log("Attempting to save department:");
+          console.log("originalDepartmentName:", originalDepartmentName);
+          console.log("newDepartment (editForm.name):", editForm.name);
+          console.log("newDepartmentAmh (editForm.departmentamh):", editForm.departmentamh);
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updatePayload)
           })
-          if (!res.ok) throw new Error('Failed to update department')
+          if (!res.ok) {
+            const errorData = await res.json(); // Parse the error response
+            throw new Error(errorData.error || 'Failed to update department'); // Use backend error or generic
+          }
           setEditingId(null)
           setEditForm({})
+          setOriginalDepartmentName(null) // Clear original name after save
           setEditLanguages(prev => {
             const newState = { ...prev }
             delete newState[id as string]
@@ -332,9 +366,9 @@ export default function DepartmentManager() {
           })
           setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
           fetchDepartments()
-        } catch (err) {
+        } catch (err: any) {
           console.error('Frontend Error updating department:', err);
-          alert('Error updating department')
+          alert(`Error updating department: ${err.message}`)
         }
       }
     })
@@ -366,21 +400,31 @@ export default function DepartmentManager() {
 
   // CREATE
   const handleAddDepartment = async () => {
-    if (!newDepartment.name?.trim() || !newDepartment.building?.trim() || !newDepartment.floor?.trim() || !newDepartment.officeNumber?.trim()) {
+    if (!(newDepartment.name?.toString() || '').trim() || !(newDepartment.building?.toString() || '').trim() || !(newDepartment.floor?.toString() || '').trim() || !(newDepartment.officeNumber?.toString() || '').trim()) {
       alert("Please fill in all required fields (Department Name, Block, Floor, Office Number) before adding.")
       return
     }
     try {
+      const payload = {
+        department: newDepartment.name,
+        departmentamh: newDepartment.departmentamh,
+        floor: newDepartment.floor,
+        officeNumber: newDepartment.officeNumber,
+        building: newDepartment.building,
+      };
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newDepartment)
+        body: JSON.stringify(payload)
       })
-      if (!res.ok) throw new Error('Failed to add department')
+      if (!res.ok) {
+        const errorData = await res.json(); // Parse the error response
+        throw new Error(errorData.error || 'Failed to add department'); // Use backend error or generic
+      }
       setNewDepartment({ name: "", floor: "", officeNumber: "", building: "" })
       fetchDepartments()
-    } catch (err) {
-      alert('Error adding department')
+    } catch (err: any) {
+      alert(`Error adding department: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
   }
 
@@ -398,13 +442,13 @@ export default function DepartmentManager() {
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id })
+            body: JSON.stringify({ id: id })
           })
           if (!res.ok && res.status !== 204) throw new Error('Failed to delete department')
           setEditingId(null)
           setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
           fetchDepartments()
-        } catch (err) {
+        } catch (err: any) {
           alert('Error deleting department')
         }
       }
@@ -552,8 +596,8 @@ export default function DepartmentManager() {
                       <div>
                         <Label className="text-deep-forest font-medium">Department Name</Label>
                         <Input
-                          value={addForm.name}
-                          onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                          value={newDepartment.name}
+                          onChange={e => setNewDepartment(f => ({ ...f, name: e.target.value }))}
                           placeholder="Enter department name"
                           className="bg-white border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1"
                         />
@@ -561,8 +605,8 @@ export default function DepartmentManager() {
                       <div>
                         <Label className="text-deep-forest font-medium">Block</Label>
                         <Select
-                          value={addForm.building}
-                          onValueChange={val => setAddForm(f => ({ ...f, building: val }))}
+                          value={newDepartment.building}
+                          onValueChange={val => setNewDepartment(f => ({ ...f, building: val }))}
                         >
                           <SelectTrigger className="border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1 bg-white text-deep-forest">
                             <SelectValue placeholder="Select block" />
@@ -577,8 +621,8 @@ export default function DepartmentManager() {
                       <div className="md-4 mt-2">
                         <Label className="text-deep-forest font-medium">Floor</Label>
                         <Select
-                          value={addForm.floor}
-                          onValueChange={val => setAddForm(f => ({ ...f, floor: val }))}
+                          value={newDepartment.floor}
+                          onValueChange={val => setNewDepartment(f => ({ ...f, floor: val }))}
                         >
                           <SelectTrigger className="border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1 bg-white text-deep-forest">
                             <SelectValue placeholder="Select floor" />
@@ -593,8 +637,8 @@ export default function DepartmentManager() {
                       <div className="mt-2">
                         <Label className="text-deep-forest font-medium">Office Number</Label>
                         <Select
-                          value={addForm.officeNumber}
-                          onValueChange={val => setAddForm(f => ({ ...f, officeNumber: val }))}
+                          value={newDepartment.officeNumber}
+                          onValueChange={val => setNewDepartment(f => ({ ...f, officeNumber: val }))}
                         >
                           <SelectTrigger className="border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1 bg-white text-deep-forest">
                             <SelectValue placeholder="Select office number" />
@@ -613,25 +657,7 @@ export default function DepartmentManager() {
                   
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-3 justify-end">
-                    <Button onClick={() => {
-                      // Check for empty fields
-                      if (!addForm.name.trim() || !addForm.building.trim() || !addForm.floor.trim() || !addForm.officeNumber.trim()) {
-                        alert("Please fill in all required fields before adding a department.")
-                        return
-                      }
-                      setDepartments(prev => [
-                        ...prev,
-                        {
-                          id: Date.now().toString(),
-                          name: addForm.name,
-                          building: addForm.building,
-                          floor: addForm.floor,
-                          officeNumber: addForm.officeNumber,
-                        }
-                      ])
-                      setAddForm({ name: "", building: "", floor: "", officeNumber: "" })
-                      setShowAddForm(false)
-                    }} className="bg-bronze hover:bg-bronze/90 text-white">
+                    <Button onClick={handleAddDepartment} className="bg-bronze hover:bg-bronze/90 text-white">
                       <Save className="w-4 h-4 mr-2" />
                       Add Department
                     </Button>
@@ -641,7 +667,7 @@ export default function DepartmentManager() {
                       className="border-deep-forest/30 text-deep-forest hover:bg-deep-forest hover:text-alabaster min-w-[160px]"
                       onClick={() => {
                         setShowAddForm(false);
-                        setAddForm({ name: "", building: "", floor: "", officeNumber: "" });
+                        setNewDepartment({ name: "", building: "", floor: "", officeNumber: "" });
                       }}
                     >
                       <X className="w-4 h-4 mr-2" />
