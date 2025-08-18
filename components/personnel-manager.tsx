@@ -14,6 +14,7 @@ import Image from "next/image"
 import { FaUserCircle } from "react-icons/fa"
 import { useRouter } from "next/navigation"
 import { useDebounce } from "@/hooks/use-debounce"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 type Language = "en" | "am"
 
@@ -44,6 +45,21 @@ export default function PersonnelManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Personnel>>(initialFormData);
   const [currentLang, setCurrentLang] = useState<Language>("en")
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+    variant?: "default" | "destructive"
+    confirmText?: string
+    cancelText?: string
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    variant: "default"
+  })
 
   useEffect(() => {
     if (typeof window !== "undefined" && sessionStorage.getItem('isAuthenticated') !== 'true') {
@@ -63,14 +79,20 @@ export default function PersonnelManager() {
         throw new Error('Failed to fetch personnel data');
       }
       const data = await res.json();
-      const personnelArr: Personnel[] = data.map((p: any) => ({
-        id: p.id,
-        fullName: p.wname,
-        position: { en: p.wtitle, am: p.wtitleamh || '' },
-        department: { en: p.department, am: '' },
-        photoUrl: p.photo_url || '',
-        location: ''
-      }));
+      const personnelArr: Personnel[] = data
+        .map((p: any) => ({
+          id: p.id,
+          fullName: p.wname ?? "",
+          position: { en: p.wtitle ?? "", am: p.wtitleamh ?? "" },
+          department: { en: p.department ?? "", am: "" },
+          photoUrl: p.photo_url ?? ""
+        }));
+      // Only sort by fullName, and handle possible null/empty values
+      personnelArr.sort((a, b) => {
+        const nameA = a.fullName?.toLowerCase() || "";
+        const nameB = b.fullName?.toLowerCase() || "";
+        return nameA.localeCompare(nameB);
+      });
       setPersonnel(personnelArr);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
@@ -128,11 +150,41 @@ export default function PersonnelManager() {
   }
 
   const handleCancel = () => {
-    setEditingId(null)
-    setFormData(initialFormData)
-  }
+    const isDirty = formData.fullName || formData.position?.en || formData.position?.am || formData.department?.en || formData.department?.am || formData.photoUrl;
+    if (isDirty) {
+      setConfirmDialog({
+        isOpen: true,
+        title: "Discard Changes",
+        message: "You have unsaved changes. Are you sure you want to discard them?",
+        variant: "destructive",
+        confirmText: "Discard",
+        cancelText: "Keep Editing",
+        onConfirm: () => {
+          setEditingId(null);
+          setFormData(initialFormData);
+          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+        }
+      });
+    } else {
+      setEditingId(null);
+      setFormData(initialFormData);
+    }
+  };
 
   const handleSave = async () => {
+    if (!formData.fullName || !formData.position?.en) {
+      setConfirmDialog({
+        isOpen: true,
+        title: "Missing Information",
+        message: "Please fill in all required fields (Full Name, Position) before saving.",
+        variant: "default",
+        confirmText: "OK",
+        onConfirm: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} }),
+        onCancel: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
+      })
+      return
+    }
+
     const isNew = editingId === "new";
     const method = isNew ? 'POST' : 'PUT';
     const url = '/api/personnel';
@@ -148,41 +200,63 @@ export default function PersonnelManager() {
       photoUrl: formData.photoUrl
     };
 
-    try {
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to ${isNew ? 'add' : 'update'} personnel`);
+    setConfirmDialog({
+      isOpen: true,
+      title: isNew ? "Add Personnel" : "Save Changes",
+      message: `Are you sure you want to ${isNew ? 'add this new personnel' : 'save the changes'}?`,
+      variant: "default",
+      confirmText: isNew ? "Add" : "Save",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+    
+          if (!res.ok) {
+            throw new Error(`Failed to ${isNew ? 'add' : 'update'} personnel`);
+          }
+    
+          await fetchPersonnel(); // Refetch all personnel data
+          handleCancel(); // Close form and reset state
+          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Unknown error occurred');
+          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+        }
       }
-
-      await fetchPersonnel(); // Refetch all personnel data
-      handleCancel(); // Close form and reset state
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    }
+    })
   };
 
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this personnel entry? This action cannot be undone.")) {
-      try {
-        const res = await fetch(`/api/personnel`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id }),
-        });
-        if (!res.ok) {
-          throw new Error('Failed to delete personnel');
+    setConfirmDialog({
+      isOpen: true,
+      title: "Delete Personnel",
+      message: "Are you sure you want to delete this personnel entry? This action cannot be undone.",
+      variant: "destructive",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/personnel`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id }),
+          });
+          if (!res.ok) {
+            throw new Error('Failed to delete personnel');
+          }
+          setPersonnel((prev) => prev.filter((p) => p.id !== id));
+          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Unknown error occurred');
+          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
         }
-        setPersonnel((prev) => prev.filter((p) => p.id !== id));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error occurred');
       }
-    }
+    })
   };
 
   const handleFormChange = (field: string, value: any) => {
@@ -375,10 +449,13 @@ export default function PersonnelManager() {
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-3 justify-end">
-                    <Button onClick={handleSave} className="bg-bronze hover:bg-bronze/90 text-white">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:justify-end w-full">
+                    <Button
+                      onClick={handleSave}
+                      className="bg-bronze hover:bg-bronze/90 text-white min-w-[160px]"
+                    >
                       <Save className="w-4 h-4 mr-2" />
-                      Save Personnel
+                      Save Personnel info
                     </Button>
                     <Button
                       type="button"
@@ -396,56 +473,44 @@ export default function PersonnelManager() {
 
             {/* Personnel List */}
             {!editingId && filteredPersonnel.map((person) => (
-              <Card key={person.id} className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[120px] shadow-lg">
-                <div className="flex items-center justify-between h-full">
-                  <div className="flex-1">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-                            {person.photoUrl ? (
-                              <Image src={person.photoUrl} alt={person.fullName} width={32} height={32} className="object-contain rounded-full" />
-                            ) : (
-                              <FaUserCircle className="w-8 h-8 text-gray-400" />
-                            )}
-                          </div>
-                          <div>
-                            <CardTitle className="text-lg text-deep-forest font-semibold">{person.fullName}</CardTitle>
-                          </div>
-                        </div>
+              <Card key={person.id} className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[120px] shadow-lg flex items-center">
+                <div className="flex w-full min-h-[120px] items-center ml-6">
+                  <div className="flex-1 flex items-center">
+                    <div className="flex items-center gap-6 w-full">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                        {person.photoUrl ? (
+                          <Image src={person.photoUrl} alt={person.fullName} width={32} height={32} className="object-contain rounded-full" />
+                        ) : (
+                          <FaUserCircle className="w-8 h-8 text-deep-forest-500" />
+                        )}
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs border-bronze/50 text-bronze">
-                              {person.position.en}
-                            </Badge>
-                          </div>
-                          
-                          
-                        </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-lg text-deep-forest font-semibold">{person.fullName}</span>
+                        <Badge variant="outline" className="text-xs border-bronze/85 text-bronze">
+                          {person.position.en}
+                        </Badge>
                       </div>
-                    </CardContent>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-center h-full px-6">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(person)}
-                      className="bg-deep-forest hover:bg-deep-forest/90 text-white border border-deep-forest/20 shadow-lg transition-all duration-300 mr-2"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(person.id)}
-                      className="text-white"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <div className="flex items-center justify-center px-6">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(person)}
+                        className="bg-deep-forest hover:bg-deep-forest/90 text-white border border-deep-forest/20 shadow-lg transition-all duration-300 mr-2"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(person.id)}
+                        className="text-white"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -453,6 +518,16 @@ export default function PersonnelManager() {
           </div>
         </>
       )}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+      />
     </div>
   )
 }

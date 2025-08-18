@@ -17,124 +17,7 @@ import { useDebounce } from "@/hooks/use-debounce"
 
 type Language = "en" | "am"
 
-interface ConfirmDialogProps {
-  isOpen: boolean
-  title: string
-  message: string
-  onConfirm: () => void
-  onCancel: () => void
-  confirmText?: string
-  cancelText?: string
-  variant?: "default" | "destructive"
-}
-
-function ConfirmDialog({ 
-  isOpen, 
-  title, 
-  message, 
-  onConfirm, 
-  onCancel, 
-  confirmText = "Confirm", 
-  cancelText = "Cancel",
-  variant = "default"
-}: ConfirmDialogProps) {
-  useEffect(() => {
-    if (isOpen) {
-      // Prevent body scroll when dialog is open
-      document.body.style.overflow = 'hidden'
-      
-      // Focus trap for accessibility
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          onCancel()
-        } else if (e.key === 'Enter') {
-          onConfirm()
-        }
-      }
-      
-      document.addEventListener('keydown', handleKeyDown)
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown)
-        document.body.style.overflow = 'unset'
-      }
-    }
-  }, [isOpen, onConfirm, onCancel])
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ 
-      position: 'fixed', 
-      top: '-50px', 
-      left: '-50px', 
-      right: '-50px', 
-      bottom: '-50px', 
-      width: 'calc(100vw + 100px)', 
-      height: 'calc(100vh + 100px)',
-      minHeight: '100vh',
-      zIndex: 9999
-    }}>
-      {/* Backdrop with simple overlay */}
-      <div 
-        className="absolute inset-0 bg-black/50"
-        onClick={onCancel}
-        style={{ 
-          position: 'absolute',
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          bottom: 0, 
-          width: '100%', 
-          height: '100%',
-          minHeight: '100vh'
-        }}
-      />
-      
-      {/* Dialog */}
-      <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all border border-deep-forest/20">
-        <div className="p-6">
-          {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              variant === "destructive" ? "bg-red-500/20" : "bg-bronze/20"
-            }`}>
-              <AlertTriangle className={`w-5 h-5 ${
-                variant === "destructive" ? "text-red-500" : "text-bronze"
-              }`} />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-deep-forest">{title}</h3>
-            </div>
-        </div>
-          
-          {/* Message */}
-          <p className="text-deep-forest/80 mb-6 leading-relaxed whitespace-pre-line">{message}</p>
-          
-          {/* Actions */}
-          <div className="flex gap-3 justify-end">
-            <Button 
-              variant="outline" 
-              onClick={onCancel}
-              className="min-w-[80px] border-deep-forest/30 text-deep-forest bg-white hover:bg-deep-forest/5"
-            >
-              {cancelText}
-          </Button>
-            <Button 
-              onClick={onConfirm}
-              className={`min-w-[80px] ${
-                variant === "destructive" 
-                  ? "bg-red-500 hover:bg-red-600 text-white" 
-                  : "bg-bronze hover:bg-bronze/90 text-white"
-              }`}
-            >
-              {confirmText}
-          </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 
 interface Department {
@@ -196,6 +79,13 @@ export default function DepartmentManager() {
         wtitle: row.wtitle || '',
         wtitleamh: row.wtitleamh || '',
       }))
+
+      departments.sort((a, b) => {
+        const nameA = a.name?.toLowerCase() || "";
+        const nameB = b.name?.toLowerCase() || "";
+        return nameA.localeCompare(nameB);
+      });
+
       setDepartments(departments)
 
       // Extract unique options for dropdowns and sort them
@@ -321,7 +211,15 @@ export default function DepartmentManager() {
   // UPDATE
   const handleSave = async (id: string) => {
     if (!(editForm.name?.toString() || '').trim() || !(editForm.building?.toString() || '').trim() || !(editForm.floor?.toString() || '').trim() || !(editForm.officeNumber?.toString() || '').trim()) {
-      alert("Please fill in all required fields (Department Name, Block, Floor, Office Number) before saving.")
+      setConfirmDialog({
+        isOpen: true,
+        title: "Missing Information",
+        message: "Please fill in all required fields (Department Name, Block, Floor, Office Number) before saving.",
+        variant: "default",
+        confirmText: "OK",
+        onConfirm: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} }),
+        onCancel: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
+      })
       return
     }
     setConfirmDialog({
@@ -399,34 +297,77 @@ export default function DepartmentManager() {
   }
 
   // CREATE
-  const handleAddDepartment = async () => {
+  const handleAddDepartment = () => {
     if (!(newDepartment.name?.toString() || '').trim() || !(newDepartment.building?.toString() || '').trim() || !(newDepartment.floor?.toString() || '').trim() || !(newDepartment.officeNumber?.toString() || '').trim()) {
-      alert("Please fill in all required fields (Department Name, Block, Floor, Office Number) before adding.")
+      setConfirmDialog({
+        isOpen: true,
+        title: "Missing Information",
+        message: "Please fill in all required fields (Department Name, Block, Floor, Office Number) before adding.",
+        variant: "default",
+        confirmText: "OK",
+        onConfirm: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} }),
+        onCancel: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
+      })
       return
     }
-    try {
-      const payload = {
-        department: newDepartment.name,
-        departmentamh: newDepartment.departmentamh,
-        floor: newDepartment.floor,
-        officeNumber: newDepartment.officeNumber,
-        building: newDepartment.building,
-      };
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) {
-        const errorData = await res.json(); // Parse the error response
-        throw new Error(errorData.error || 'Failed to add department'); // Use backend error or generic
+    setConfirmDialog({
+      isOpen: true,
+      title: "Add New Department",
+      message: "Are you sure you want to add this department to the system?",
+      variant: "default",
+      confirmText: "Add Department",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          const payload = {
+            department: newDepartment.name,
+            departmentamh: newDepartment.departmentamh,
+            floor: newDepartment.floor,
+            officeNumber: newDepartment.officeNumber,
+            building: newDepartment.building,
+          };
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Failed to add department');
+          }
+          setNewDepartment({ name: "", floor: "", officeNumber: "", building: "" })
+          setShowAddForm(false);
+          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
+          fetchDepartments()
+        } catch (err: any) {
+          alert(`Error adding department: ${err instanceof Error ? err.message : 'Unknown error'}`)
+          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
+        }
       }
-      setNewDepartment({ name: "", floor: "", officeNumber: "", building: "" })
-      fetchDepartments()
-    } catch (err: any) {
-      alert(`Error adding department: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    }
+    })
   }
+
+  const handleCancelAdd = () => {
+    const isDirty = newDepartment.name || newDepartment.building || newDepartment.floor || newDepartment.officeNumber;
+    if (isDirty) {
+        setConfirmDialog({
+            isOpen: true,
+            title: "Discard Changes",
+            message: "You have unsaved changes. Are you sure you want to discard them?",
+            variant: "destructive",
+            confirmText: "Discard",
+            cancelText: "Keep Editing",
+            onConfirm: () => {
+                setShowAddForm(false);
+                setNewDepartment({ name: "", building: "", floor: "", officeNumber: "" });
+                setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+            }
+        });
+    } else {
+        setShowAddForm(false);
+        setNewDepartment({ name: "", building: "", floor: "", officeNumber: "" });
+    }
+  };
 
   // DELETE
   const handleDelete = (id: string) => {
@@ -592,8 +533,8 @@ export default function DepartmentManager() {
                     <h4 className="text-lg font-semibold text-deep-forest mb-4">
                       Department Information
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                      <div className="md:col-span-6">
                         <Label className="text-deep-forest font-medium">Department Name</Label>
                         <Input
                           value={newDepartment.name}
@@ -602,7 +543,7 @@ export default function DepartmentManager() {
                           className="bg-white border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1"
                         />
                       </div>
-                      <div>
+                      <div className="md:col-span-2">
                         <Label className="text-deep-forest font-medium">Block</Label>
                         <Select
                           value={newDepartment.building}
@@ -618,7 +559,7 @@ export default function DepartmentManager() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="md-4 mt-2">
+                      <div className="md:col-span-2">
                         <Label className="text-deep-forest font-medium">Floor</Label>
                         <Select
                           value={newDepartment.floor}
@@ -634,7 +575,7 @@ export default function DepartmentManager() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="mt-2">
+                      <div className="md:col-span-2">
                         <Label className="text-deep-forest font-medium">Office Number</Label>
                         <Select
                           value={newDepartment.officeNumber}
@@ -650,8 +591,6 @@ export default function DepartmentManager() {
                           </SelectContent>
                         </Select>
                       </div>
-                    {/* Add spacing below the last field before the card footer */}
-                    <div className="h-2 md:h-2" />
                     </div>
                   </div>
                   
@@ -665,10 +604,7 @@ export default function DepartmentManager() {
                       type="button"
                       variant="outline"
                       className="border-deep-forest/30 text-deep-forest hover:bg-deep-forest hover:text-alabaster min-w-[160px]"
-                      onClick={() => {
-                        setShowAddForm(false);
-                        setNewDepartment({ name: "", building: "", floor: "", officeNumber: "" });
-                      }}
+                      onClick={handleCancelAdd}
                     >
                       <X className="w-4 h-4 mr-2" />
                       Cancel
@@ -727,8 +663,8 @@ export default function DepartmentManager() {
                                     </SelectContent>
                                   </Select>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div>
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                  <div className="md:col-span-6">
                                     <Label className="text-deep-forest font-medium">Department Name</Label>
                                     <Input
                                       value={editForm.name ?? ''}
@@ -737,7 +673,7 @@ export default function DepartmentManager() {
                                       className="bg-white mt-1 border-deep-forest/30 focus:border-bronze focus:ring-bronze/20"
                                     />
                                   </div>
-                                  <div>
+                                  <div className="md:col-span-2">
                                     <Label className="text-deep-forest font-medium">Block</Label>
                                     <Select
                                       value={editForm.building ?? ''}
@@ -753,7 +689,7 @@ export default function DepartmentManager() {
                                       </SelectContent>
                                     </Select>
                                   </div>
-                                  <div className="md-4 mt-2">
+                                  <div className="md:col-span-2">
                                     <Label className="text-deep-forest font-medium">Floor</Label>
                                     <Select
                                       value={editForm.floor ?? ''}
@@ -769,7 +705,7 @@ export default function DepartmentManager() {
                                       </SelectContent>
                                     </Select>
                                   </div>
-                                  <div className="mt-2">
+                                  <div className="md:col-span-2">
                                     <Label className="text-deep-forest font-medium">Office Number</Label>
                                     <Select
                                       value={editForm.officeNumber ?? ''}
@@ -785,8 +721,6 @@ export default function DepartmentManager() {
                                       </SelectContent>
                                     </Select>
                                   </div>
-                                  {/* Add spacing below the last field before the card footer */}
-                                  <div className="h-2 md:h-2" />
                                 </div>
                               </div>
                             )}
@@ -842,8 +776,7 @@ export default function DepartmentManager() {
 
                             {/* Action Buttons - Only show when not adding metadata */}
                             {showAddField !== dept.id && (
-                              <div className="flex flex-col sm:flex-row gap-2 mt-6 sm:justify-between">
-                                <div className="flex gap-2 items-center">
+                              <div className="flex flex-col sm:flex-row gap-2 mt-6 sm:justify-end">
                                   <Button
                                     type="button"
                                     className="bg-bronze hover:bg-bronze/90 text-white"
@@ -852,8 +785,6 @@ export default function DepartmentManager() {
                                     <Save className="w-4 h-4 mr-2" />
                                     Save Department Info
                                   </Button>
-                                </div>
-                                <div className="flex gap-2">
                                   <Button
                                     type="button"
                                     variant="outline"
@@ -863,16 +794,6 @@ export default function DepartmentManager() {
                                     <X className="w-4 h-4 mr-2" />
                                     Cancel
                                   </Button>
-                                  <Button
-                                    type="button"
-                                    variant="destructive"
-                                    className="text-white min-w-[160px]"
-                                    onClick={() => handleDelete(dept.id)}
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete Department
-                                  </Button>
-                                </div>
                               </div>
                             )}
 
@@ -902,14 +823,24 @@ export default function DepartmentManager() {
                   </div>
                   <div className="flex items-center justify-center h-full px-6">
                     {editingId !== dept.id && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingId(editingId === dept.id ? null : dept.id)}
-                        className="bg-deep-forest hover:bg-deep-forest/90 text-white border border-deep-forest/20 shadow-lg transition-all duration-300"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(dept)}
+                          className="bg-deep-forest hover:bg-deep-forest/90 text-white border border-deep-forest/20 shadow-lg transition-all duration-300 mr-2"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(dept.id)}
+                          className="text-white"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -933,5 +864,3 @@ export default function DepartmentManager() {
     </div>
   )
 }
-
-
