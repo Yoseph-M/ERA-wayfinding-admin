@@ -63,7 +63,7 @@ function LoginContent() {
           <div className="space-y-4">
             <div className="space-y-4">
               <Label htmlFor="username" className="flex items-center gap-2">
-                Administrator Username
+                <span>Administrator Username</span>
               </Label>
               <Input
                 id="username"
@@ -90,7 +90,7 @@ function LoginContent() {
               />
             </div>
             {error && <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>}
-            <Button onClick={handleLogin} className="w-full bg-[#EF842D] hover:bg-[#D67324]">
+            <Button onClick={handleLogin} className="w-full bg-bronze" style={{ transition: 'none' }}>
               Access Admin Panel
             </Button>
           </div>
