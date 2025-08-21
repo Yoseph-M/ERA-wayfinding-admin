@@ -13,7 +13,7 @@ import { Plus, MessageSquarePlus, User, Search, Trash2, Calendar, Clock, Buildin
 import { TbReportAnalytics } from "react-icons/tb";
 import { RiFeedbackFill } from "react-icons/ri";
 import { CgComment } from "react-icons/cg";
-import { FaBug } from "react-icons/fa";
+import { FaBug, FaUserCircle } from "react-icons/fa";
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -367,33 +367,32 @@ export default function CommentsManager() {
                   })
                   .map((comment) => (
                     <li key={comment.id} className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[120px] shadow-lg flex items-center">
-                      <div className="flex w-full min-h-[120px] items-center ml-6">
-                        <div className="flex-1 flex items-center">
-                          <div className="flex items-center gap-6 w-full">
-                            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-                              <FaUserCircle className="w-8 h-8 text-deep-forest-500" />
+                        <div className="flex w-full min-h-[120px] items-center ml-6">
+                            <div className="flex-1 flex items-center">
+                                <div className="flex items-center gap-6 w-full">
+                                    <div className="flex flex-col gap-4">
+                                        <span className="text-lg text-deep-forest font-semibold">{comment.name}</span>
+                                        <p className="text-gray-700">{comment.feedback_text}</p>
+                                        <p className="text-xs text-gray-500 mt-2 flex items-center">
+                                            <Calendar className="w-3 h-3 mr-1.5" />
+                                            {new Date(comment.feedback_date).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <span className="text-lg text-deep-forest font-semibold">{comment.name}</span>
-                              <Badge variant="outline" className="text-xs border-bronze/85 text-bronze">
-                                {comment.title}
-                              </Badge>
+                            <div className="flex items-center justify-center px-6">
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => handleDelete(comment.id, 'personnel')}
+                                        className="text-white"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                </div>
                             </div>
-                          </div>
                         </div>
-                        <div className="flex items-center justify-center px-6">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDelete(comment.id, 'personnel')}
-                              className="text-white"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
                     </li>
                   ))}
               </ul>
