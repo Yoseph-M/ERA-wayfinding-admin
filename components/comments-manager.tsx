@@ -352,42 +352,51 @@ export default function CommentsManager() {
                   </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent>
-                  <ul className="space-y-4">
-                    {personnelComments
-                      .filter((comment) => {
-                        const matchesSearch =
-                          searchTerm === "" ||
-                          comment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          comment.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          comment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          comment.feedback_text.toLowerCase().includes(searchTerm.toLowerCase());
-                        const matchesDepartment =
-                          personnelDepartmentFilter === "all" || comment.department === personnelDepartmentFilter;
-                        return matchesSearch && matchesDepartment;
-                      })
-                      .map((comment) => (
-                        <li key={comment.id} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-                          <div className="flex items-start space-x-4">
-                            
-                            <div className="flex-1">
-                              <p className="font-bold text-deep-forest">{comment.name}</p>
-                              <p className="text-gray-700">{comment.feedback_text}</p>
-                              <p className="text-xs text-gray-500 mt-2 flex items-center">
-                                <Calendar className="w-3 h-3 mr-1.5" />
-                                {new Date(comment.feedback_date).toLocaleDateString()}
-                              </p>
+              <ul className="space-y-4">
+                {personnelComments
+                  .filter((comment) => {
+                    const matchesSearch =
+                      searchTerm === "" ||
+                      comment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      comment.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      comment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      comment.feedback_text.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesDepartment =
+                      personnelDepartmentFilter === "all" || comment.department === personnelDepartmentFilter;
+                    return matchesSearch && matchesDepartment;
+                  })
+                  .map((comment) => (
+                    <li key={comment.id} className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[120px] shadow-lg flex items-center">
+                      <div className="flex w-full min-h-[120px] items-center ml-6">
+                        <div className="flex-1 flex items-center">
+                          <div className="flex items-center gap-6 w-full">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                              <FaUserCircle className="w-8 h-8 text-deep-forest-500" />
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(comment.id, 'personnel')}>
-                              <Trash2 className="w-4 h-4 text-red-500" />
+                            <div className="flex items-center gap-4">
+                              <span className="text-lg text-deep-forest font-semibold">{comment.name}</span>
+                              <Badge variant="outline" className="text-xs border-bronze/85 text-bronze">
+                                {comment.title}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-center px-6">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(comment.id, 'personnel')}
+                              className="text-white"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                        </li>
-                      ))}
-                  </ul>
-                </CardContent>
-              </Card>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+              </ul>
             </TabsContent>
           </Tabs>
         </>
