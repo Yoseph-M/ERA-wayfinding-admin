@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,27 +9,29 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Plus, Edit, Save, X, Search, Trash2 } from "lucide-react"
 import Image from "next/image"
 import { FaUserCircle } from "react-icons/fa"
 import { useRouter } from "next/navigation"
 import { useDebounce } from "@/hooks/use-debounce"
-import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 
 type Language = "en" | "am"
 
 interface Personnel {
   id: string
-  fullName: string
+  fullName: { en: string; am: string }
   position: { en: string; am: string }
   department: { en: string; am: string }
-  photoUrl?: string
+  phoneNumber?: string;
+  photoUrl?: string;
 }
 
 const initialFormData: Partial<Personnel> = {
-  fullName: "",
+  fullName: { en: "", am: "" },
   position: { en: "", am: "" },
   department: { en: "", am: "" },
+  phoneNumber: "",
   photoUrl: "",
 };
 
@@ -45,21 +47,26 @@ export default function PersonnelManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Personnel>>(initialFormData);
   const [currentLang, setCurrentLang] = useState<Language>("en")
-  const [confirmDialog, setConfirmDialog] = useState<{
-    isOpen: boolean
-    title: string
-    message: string
-    onConfirm: () => void
-    variant?: "default" | "destructive"
-    confirmText?: string
-    cancelText?: string
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    onConfirm: () => {},
-    variant: "default"
-  })
+  const [isFormDirty, setIsFormDirty] = useState(false); // New state for form dirty status
+  const originalFormData = useRef<Partial<Personnel>>(initialFormData); // New ref to store original form data
+  const [saveDialogMessage, setSaveDialogMessage] = useState("Are you sure you want to save these changes?"); // New state
+  const [isSaveConfirmOpen, setSaveConfirmOpen] = useState(false);
+  const [isCancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null);
+
+  const isSaveButtonDisabled = useMemo(() => {
+    const isNewEntry = editingId === "new";
+    const isFullNameEmpty = !formData.fullName?.en; // Only check English for primary validation
+    const isPositionEmpty = !formData.position?.en; // Only check English for primary validation
+
+    // If it's a new entry, disable if full name or position (English) are empty
+    if (isNewEntry) {
+      return isFullNameEmpty || isPositionEmpty;
+    } else {
+      // If editing existing, disable if no changes or if full name or position (English) become empty
+      return !isFormDirty || isFullNameEmpty || isPositionEmpty;
+    }
+  }, [formData, isFormDirty, editingId]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && sessionStorage.getItem('isAuthenticated') !== 'true') {
@@ -79,18 +86,48 @@ export default function PersonnelManager() {
         throw new Error('Failed to fetch personnel data');
       }
       const data = await res.json();
-      const personnelArr: Personnel[] = data
-        .map((p: any) => ({
-          id: p.id,
-          fullName: p.wname ?? "",
-          position: { en: p.wtitle ?? "", am: p.wtitleamh ?? "" },
-          department: { en: p.department ?? "", am: "" },
-          photoUrl: p.photo_url ?? ""
-        }));
+      const imageFiles = [
+        "Ato alemayehu Ayele.jpg",
+        "Ato Daniel Girma.jpg",
+        "Ato Daniel Mengiste.jpg",
+        "Ato Dereje.jpg",
+        "Ato Kasaye tsige.jpg",
+        "Ato Robel Bekele.jpg",
+        "Ato samson.jpg",
+        "Ato sisay Bekele.jpg",
+        "Ato Tsega Seboka.jpg",
+        "Ato Yared Shewangizaw.jpg",
+        "Ato yetimgeta.jpg",
+        "Eng Dejene Gutu.jpg",
+        "Eng Genet Alemayehu.jpg",
+        "Eng Melka Bekele.jpg",
+        "Eng Zekariyas.jpg",
+        "Eng Zeyineba.jpg",
+        "Eng. Hirut.jpg",
+        "Eng.Mohammed.jpg",
+        "Female.jpg",
+        "Male.jpg",
+        "Wro Aster.jpg",
+        "Wro Brehan.jpg",
+        "Wrt Misrak Gashaw.jpg"
+      ];
+
+                const personnelArr: Personnel[] = data
+            .map((p: any) => {
+              const fullNameEn = p.wname ?? "";
+              return {
+                id: p.id,
+                fullName: { en: fullNameEn, am: p.wnameamh ?? "" },
+                position: { en: p.wtitle ?? "", am: p.wtitleamh ?? "" },
+                department: { en: p.department ?? "", am: p.departmentamh ?? "" },
+                phoneNumber: p.wcontact ?? "",
+                photoUrl: p.photoUrl ?? "",
+              };
+            });
       // Only sort by fullName, and handle possible null/empty values
       personnelArr.sort((a, b) => {
-        const nameA = a.fullName?.toLowerCase() || "";
-        const nameB = b.fullName?.toLowerCase() || "";
+        const nameA = a.fullName?.en?.toLowerCase() || "";
+        const nameB = b.fullName?.en?.toLowerCase() || "";
         return nameA.localeCompare(nameB);
       });
       setPersonnel(personnelArr);
@@ -117,18 +154,18 @@ export default function PersonnelManager() {
     }
   }
 
-  const departments = Array.from(new Map(personnel.filter(p => p.department.en && p.department.en.trim()).map(p => [p.department.en, { en: p.department.en, am: p.department.am }])).values())
-  const positions = Array.from(new Set(personnel.map(p => p.position.en && p.position.en.trim()).filter(Boolean))).map(en => ({ en, am: '' }))
+  const departments = Array.from(new Map(personnel.filter(p => (p.department.en && p.department.en.trim()) || (p.department.am && p.department.am.trim())).map(p => [p.department.en, { en: p.department.en, am: p.department.am }])).values())
+  const positions = Array.from(new Map(personnel.filter(p => (p.position.en && p.position.en.trim()) || (p.position.am && p.position.am.trim())).map(p => [p.position.en, { en: p.position.en, am: p.position.am }])).values())
 
   const filteredPersonnel = useMemo(() => personnel.filter((person) => {
     // Filter out personnel with empty or null fullName
-    if (!person.fullName || person.fullName.trim() === '') {
+    if (!person.fullName || person.fullName.en.trim() === '') {
       return false;
     }
 
     const matchesSearch =
       debouncedSearchTerm === "" ||
-      person.fullName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      person.fullName.en.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
       (person.position.en && person.position.en.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
       (person.department.en && person.department.en.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
 
@@ -141,47 +178,65 @@ export default function PersonnelManager() {
     setEditingId("new");
     setFormData(initialFormData);
     setCurrentLang("en");
+    setIsFormDirty(false); // New form is clean
+    originalFormData.current = initialFormData; // Set original for new form
   };
 
   const handleEdit = (person: Personnel) => {
     setEditingId(person.id)
     setFormData({ ...person })
     setCurrentLang("en")
+    setIsFormDirty(false); // Editing an existing, so initially clean
+    originalFormData.current = { ...person }; // Store original data
   }
 
   const handleCancel = () => {
-    const isDirty = formData.fullName || formData.position?.en || formData.position?.am || formData.department?.en || formData.department?.am || formData.photoUrl;
-    if (isDirty) {
-      setConfirmDialog({
-        isOpen: true,
-        title: "Discard Changes",
-        message: "You have unsaved changes. Are you sure you want to discard them?",
-        variant: "destructive",
-        confirmText: "Discard",
-        cancelText: "Keep Editing",
-        onConfirm: () => {
-          setEditingId(null);
-          setFormData(initialFormData);
-          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
-        }
-      });
-    } else {
-      setEditingId(null);
-      setFormData(initialFormData);
+    setEditingId(null);
+    setFormData(initialFormData);
+    setIsFormDirty(false); // Form is no longer dirty after cancel
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const newFormData = { ...prev, [name]: value };
+      setIsFormDirty(!areFormsEqual(newFormData, originalFormData.current));
+      return newFormData;
+    });
+  };
+
+  const handleNestedFormChange = (field: keyof Personnel, lang: Language, value: string) => {
+    setFormData(prev => {
+      const newFormData = {
+        ...prev,
+        [field]: {
+          ...(prev[field] as { en: string; am: string }),
+          [lang]: value,
+        },
+      };
+      setIsFormDirty(!areFormsEqual(newFormData, originalFormData.current));
+      return newFormData;
+    });
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => {
+          const newFormData = { ...prev, photoUrl: reader.result as string };
+          setIsFormDirty(!areFormsEqual(newFormData, originalFormData.current));
+          return newFormData;
+        });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleSave = async () => {
     if (!formData.fullName || !formData.position?.en) {
-      setConfirmDialog({
-        isOpen: true,
-        title: "Missing Information",
-        message: "Please fill in all required fields (Full Name, Position) before saving.",
-        variant: "default",
-        confirmText: "OK",
-        onConfirm: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} }),
-        onCancel: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
-      })
+      alert("Please fill in all required fields (Full Name, Position) before saving.");
       return
     }
 
@@ -191,97 +246,63 @@ export default function PersonnelManager() {
 
     const body = {
       id: isNew ? undefined : editingId,
-      wname: formData.fullName,
-      wnameamh: formData.fullName,
+      wname: formData.fullName?.en,
+      wnameamh: formData.fullName?.am,
       wtitle: formData.position?.en,
       wtitleamh: formData.position?.am,
-      wcontact: '',
+      wcontact: formData.phoneNumber || '',
       department: formData.department?.en,
-      photoUrl: formData.photoUrl
+      departmentamh: formData.department?.am,
+      photoUrl: formData.photoUrl || '',
     };
 
-    setConfirmDialog({
-      isOpen: true,
-      title: isNew ? "Add Personnel" : "Save Changes",
-      message: `Are you sure you want to ${isNew ? 'add this new personnel' : 'save the changes'}?`,
-      variant: "default",
-      confirmText: isNew ? "Add" : "Save",
-      cancelText: "Cancel",
-      onConfirm: async () => {
-        try {
-          const res = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          });
-    
-          if (!res.ok) {
-            throw new Error(`Failed to ${isNew ? 'add' : 'update'} personnel`);
-          }
-    
-          await fetchPersonnel(); // Refetch all personnel data
-          handleCancel(); // Close form and reset state
-          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Unknown error occurred');
-          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
-        }
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to ${isNew ? 'add' : 'update'} personnel`);
       }
-    })
+
+      await fetchPersonnel(); // Refetch all personnel data
+      handleCancel(); // Close form and reset state, also sets isFormDirty to false
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+    }
   };
 
 
   const handleDelete = async (id: string) => {
-    setConfirmDialog({
-      isOpen: true,
-      title: "Delete Personnel",
-      message: "Are you sure you want to delete this personnel entry? This action cannot be undone.",
-      variant: "destructive",
-      confirmText: "Delete",
-      cancelText: "Cancel",
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`/api/personnel`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id }),
-          });
-          if (!res.ok) {
-            throw new Error('Failed to delete personnel');
-          }
-          setPersonnel((prev) => prev.filter((p) => p.id !== id));
-          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Unknown error occurred');
-          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
-        }
+    try {
+      const res = await fetch(`/api/personnel`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to delete personnel');
       }
-    })
-  };
-
-  const handleFormChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleNestedFormChange = (field: 'position' | 'department', lang: Language, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: {
-        ...prev[field],
-        [lang]: value,
-      }
-    }));
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, photoUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      setPersonnel((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
     }
+  };
+
+  // Helper to compare form data (simple deep comparison for relevant fields)
+  const areFormsEqual = (form1: Partial<Personnel>, form2: Partial<Personnel>) => {
+    return (
+      form1.fullName?.en === form2.fullName?.en &&
+      form1.fullName?.am === form2.fullName?.am &&
+      form1.position?.en === form2.position?.en &&
+      form1.position?.am === form2.position?.am &&
+      form1.department?.en === form2.department?.en &&
+      form1.department?.am === form2.department?.am &&
+      form1.phoneNumber === form2.phoneNumber &&
+      form1.photoUrl === form2.photoUrl
+    );
   };
 
 
@@ -300,8 +321,8 @@ export default function PersonnelManager() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
           <h3 className="text-red-800 font-medium mb-2">Error Loading Data</h3>
           <p className="text-red-600 text-sm">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="mt-2 text-red-600 hover:text-red-800 underline text-sm"
           >
             Try again
@@ -354,15 +375,16 @@ export default function PersonnelManager() {
                           <SelectValue placeholder="Filter by department" />
                         </SelectTrigger>
                         <SelectContent className="bg-white border-deep-forest/20">
-                          {Array.from(new Set(departments.map(dept => dept.en).filter(name => name && name.trim() !== "")))
-                            .sort((a, b) => a.localeCompare(b))
-                            .map((department) => (
-                              <SelectItem key={department} value={department} className="text-deep-forest hover:bg-bronze/10">
-                                {department}
-                              </SelectItem>
-                            ))}
-                          <SelectItem value="all" className="text-deep-forest hover:bg-bronze/10">ALL DEPARTMENTS</SelectItem>
-                        </SelectContent>
+                            {departments
+                              .filter(dep => dep.en && dep.en.trim()) // Keep existing filter
+                              .sort((a, b) => (a.en || "").localeCompare(b.en || ""))
+                              .map((department) => (
+                                <SelectItem key={department.en} value={department.en} className="text-deep-forest hover:bg-bronze/10">
+                                  {department[currentLang]}
+                                </SelectItem>
+                              ))}
+                            <SelectItem value="all" className="text-deep-forest hover:bg-bronze/10">ALL DEPARTMENTS</SelectItem>
+                          </SelectContent>
                       </Select>
                     </div>
                   </div>
@@ -397,10 +419,10 @@ export default function PersonnelManager() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-deep-forest font-medium">Full Name</Label>
+                        <Label className="text-deep-forest font-medium">Full Name ({currentLang.toUpperCase()})</Label>
                         <Input
-                          value={formData.fullName || ''}
-                          onChange={e => handleFormChange('fullName', e.target.value)}
+                          value={formData.fullName?.[currentLang] || ''}
+                          onChange={e => handleNestedFormChange('fullName', currentLang, e.target.value)}
                           placeholder="Enter full name"
                           className="bg-white mt-1 border-deep-forest/30 focus:border-bronze focus:ring-bronze/20"
                         />
@@ -412,12 +434,14 @@ export default function PersonnelManager() {
                           onValueChange={value => handleNestedFormChange('position', currentLang, value)}
                         >
                           <SelectTrigger className="bg-white mt-1 border-deep-forest/30 focus:border-bronze focus:ring-bronze/20">
-                            <SelectValue placeholder="Select position" />
+                            <SelectValue placeholder="Select position">{formData.position?.[currentLang]}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            {positions.map(pos => (
-                              <SelectItem key={pos.en} value={pos.en}>{pos.en}</SelectItem>
-                            ))}
+                            {positions
+                              .sort((a, b) => (a[currentLang] || "").localeCompare(b[currentLang] || ""))
+                              .map(pos => (
+                                <SelectItem key={pos.en} value={pos.en}>{pos[currentLang]}</SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -428,22 +452,46 @@ export default function PersonnelManager() {
                           onValueChange={value => handleNestedFormChange('department', currentLang, value)}
                         >
                           <SelectTrigger className="bg-white mt-1 border-deep-forest/30 focus:border-bronze focus:ring-bronze/20">
-                            <SelectValue placeholder="Select department" />
+                            <SelectValue placeholder="Select department">{formData.department?.[currentLang]}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            {departments.map(dep => (
-                              <SelectItem key={dep.en} value={dep.en}>{dep.en}</SelectItem>
-                            ))}
+                            {departments
+                              .sort((a, b) => (a.en || "").localeCompare(b.en || ""))
+                              .map(dep => (
+                                <SelectItem key={dep.en} value={dep.en}>{dep[currentLang]}</SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div>
+                        <Label className="text-deep-forest font-medium">Phone Number</Label>
+                        <Input
+                          type="tel"
+                          name="phoneNumber"
+                          value={formData.phoneNumber || ''}
+                          onChange={handleInputChange}
+                          placeholder="Enter phone number"
+                          className="bg-white mt-1 border-deep-forest/30 focus:border-bronze focus:ring-bronze/20"
+                        />
                       </div>
                       <div>
                         <Label className="text-deep-forest font-medium">Photo</Label>
                         <Input
                           type="file"
-                          onChange={handleFileChange}
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
                           className="bg-white mt-1 border-deep-forest/30 focus:border-bronze focus:ring-bronze/20"
                         />
+                        {formData.photoUrl && (
+                          <div className="mt-2 w-24 h-24 relative rounded-full overflow-hidden border border-deep-forest/30">
+                            <Image
+                              src={formData.photoUrl}
+                              alt="Personnel Photo"
+                              layout="fill"
+                              objectFit="cover"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -451,21 +499,69 @@ export default function PersonnelManager() {
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-3 sm:justify-end w-full">
                     <Button
-                      onClick={handleSave}
                       className="bg-bronze hover:bg-bronze/90 text-white min-w-[160px]"
+                      disabled={isSaveButtonDisabled}
+                      onClick={() => {
+                        if (!formData.fullName?.en || !formData.position?.en) {
+                          setSaveDialogMessage("Please fill in all required fields (Full Name, Department, Position) before saving.");
+                          setSaveConfirmOpen(true);
+                        } else if (!isFormDirty) {
+                          setSaveDialogMessage("You must make a change to save.");
+                          setSaveConfirmOpen(true);
+                        } else {
+                          setSaveDialogMessage("Are you sure you want to save these changes? This action cannot be undone.");
+                          setSaveConfirmOpen(true);
+                        }
+                      }}
                     >
                       <Save className="w-4 h-4 mr-2" />
                       Save Personnel info
                     </Button>
+                    <AlertDialog open={isSaveConfirmOpen} onOpenChange={setSaveConfirmOpen}>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Save</AlertDialogTitle>
+                          <AlertDialogDescription>{saveDialogMessage}</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setSaveConfirmOpen(false)}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => {
+                            handleSave();
+                            setSaveConfirmOpen(false);
+                          }}>{saveDialogMessage.includes("Please fill in all required fields") || saveDialogMessage.includes("You must make a change to save.") ? "Ok" : "Save"}</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <Button
                       type="button"
                       variant="outline"
                       className="border-deep-forest/30 text-deep-forest hover:bg-deep-forest hover:text-alabaster min-w-[160px]"
-                      onClick={handleCancel}
+                      onClick={() => {
+                        if (isFormDirty) {
+                          setCancelConfirmOpen(true);
+                        } else {
+                          handleCancel();
+                        }
+                      }}
                     >
                       <X className="w-4 h-4 mr-2" />
                       Cancel
                     </Button>
+                    <AlertDialog open={isCancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Cancel</AlertDialogTitle>
+                          <AlertDialogDescription>Are you sure you want to cancel? Any unsaved changes will be lost.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="hover:bg-deep-forest/10" onClick={() => setCancelConfirmOpen(false)}>No, Keep Editing</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => {
+                            handleCancel();
+                            setCancelConfirmOpen(false);
+                          }}>Yes, Cancel</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </CardContent>
               </Card>
@@ -473,19 +569,26 @@ export default function PersonnelManager() {
 
             {/* Personnel List */}
             {!editingId && filteredPersonnel.map((person) => (
-              <Card key={person.id} className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[120px] shadow-lg flex items-center">
+              <Card key={person.id} className="bg- alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[120px] shadow-lg flex items-center">
                 <div className="flex w-full min-h-[120px] items-center ml-6">
                   <div className="flex-1 flex items-center">
                     <div className="flex items-center gap-6 w-full">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center">
                         {person.photoUrl ? (
-                          <Image src={person.photoUrl} alt={person.fullName} width={32} height={32} className="object-contain rounded-full" />
+                          <div className="w-full h-full relative rounded-full overflow-hidden">
+                            <Image
+                              src={person.photoUrl}
+                              alt={person.fullName.en || "Personnel Photo"}
+                              layout="fill"
+                              objectFit="cover"
+                            />
+                          </div>
                         ) : (
-                          <FaUserCircle className="w-8 h-8 text-deep-forest-500" />
+                          <FaUserCircle className="w-8 h-8 text-gray-400" />
                         )}
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-lg text-deep-forest font-semibold">{person.fullName}</span>
+                        <span className="text-lg text-deep-forest font-semibold">{person.fullName[currentLang]}</span>
                         <Badge variant="outline" className="text-xs border-bronze/85 text-bronze">
                           {person.position.en}
                         </Badge>
@@ -502,14 +605,25 @@ export default function PersonnelManager() {
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(person.id)}
-                        className="text-white"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" className="text-white" onClick={() => setDeleteConfirmOpen(person.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the personnel entry.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="hover:bg-deep-forest" onClick={() => setDeleteConfirmOpen(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => { handleDelete(person.id); setDeleteConfirmOpen(null); }} className="bg-red-500 hover:bg-red-600">Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </div>
@@ -518,16 +632,6 @@ export default function PersonnelManager() {
           </div>
         </>
       )}
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        onConfirm={confirmDialog.onConfirm}
-        onCancel={() => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })}
-        variant={confirmDialog.variant}
-        confirmText={confirmDialog.confirmText}
-        cancelText={confirmDialog.cancelText}
-      />
     </div>
   )
 }

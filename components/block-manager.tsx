@@ -319,10 +319,10 @@ export default function BlockManager() {
                                 return nameA.localeCompare(nameB);
                               })
                               .map((dept) => (
-                                <div key={dept.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
-                                  <Building className="w-4 h-4 text-[#EF842D]" />
-                                  <div>
-                                    <span className="font-medium text-sm">{dept.name}</span>
+                                <div key={dept.id} className="flex items-center gap-2 p-2 bg-deep-forest/15 rounded-md">
+                                  <Building className="w-6 h-8 text-bronze" />
+                                  <div className="ml-2">
+                                    <span className="font-medium text-sm text-deep-forest">{dept.name}</span>
                                     <p className="text-xs text-gray-600">
                                       <span className="text-bronze">Floor {dept.floor}, Office No. {dept.officeNumber}</span>
                                     </p>

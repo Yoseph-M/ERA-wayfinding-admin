@@ -13,7 +13,7 @@ if (!fs.existsSync(uploadsDir)) {
 
 export async function GET() {
   try {
-    const personnel = db.prepare('SELECT id, wname, wnameamh, wtitle, wtitleamh, wcontact, department, photo_url FROM era_data').all();
+    const personnel = db.prepare('SELECT id, wname, wnameamh, wtitle, wtitleamh, wcontact, department, departmentamh, photo_url FROM era_data').all();
     return NextResponse.json(personnel, { status: 200 });
   } catch (error) {
     console.error('Error fetching personnel:', error);

@@ -3,25 +3,23 @@
 import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, MessageSquarePlus, User, Search, Trash2, Calendar, Clock, Building, ChevronDown, ChevronRight } from "lucide-react"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Search, Trash2, ChevronDown, ChevronRight } from "lucide-react"
 import { TbReportAnalytics } from "react-icons/tb";
 import { RiFeedbackFill } from "react-icons/ri";
-import { CgComment } from "react-icons/cg";
 import { FaBug, FaUserCircle } from "react-icons/fa";
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useDebounce } from "@/hooks/use-debounce"
 
 interface GeneralComment {
   id: number;
   date: string;
-  "comment-type": string;
+  comment_type: string;
   comment: string;
   category: string; // This is no longer used for categorization, but we'll keep it to avoid breaking the interface
 }
@@ -37,7 +35,7 @@ interface PersonnelComment {
 
 function GeneralCommentList({ comments, onDelete }: { comments: GeneralComment[], onDelete: (id: number) => void }) {
   const sortedComments = useMemo(() => {
-    return [...comments].sort((a, b) => a["comment-type"].localeCompare(b["comment-type"]));
+    return [...comments].sort((a, b) => a.comment_type.localeCompare(b.comment_type));
   }, [comments]);
 
   return (
@@ -61,9 +59,25 @@ function GeneralCommentList({ comments, onDelete }: { comments: GeneralComment[]
 
               {/* Right Section: Delete Button */}
               <div className="flex-1 flex justify-end mr-8">
-                <Button variant="ghost" size="icon" onClick={() => onDelete(comment.id)} className="bg-red-500 hover:bg-red-500">
-                  <Trash2 className="w-4 h-4 text-white hover:text-white" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="bg-red-500 hover:bg-red-500">
+                      <Trash2 className="w-4 h-4 text-white hover:text-white" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the comment.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="hover:bg-deep-forest">Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDelete(comment.id)} className="bg-red-500 hover:bg-red-600">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           ))
@@ -75,6 +89,93 @@ function GeneralCommentList({ comments, onDelete }: { comments: GeneralComment[]
   )
 }
 
+function PersonnelCommentList({ comments, onDelete, showComments, setShowComments }: { comments: PersonnelComment[], onDelete: (id: number) => void, showComments: string | null, setShowComments: (name: string | null) => void }) {
+  const commentsByPerson = useMemo(() => {
+    return comments.reduce((acc, comment) => {
+      if (!acc[comment.name]) {
+        acc[comment.name] = [];
+      }
+      acc[comment.name].push(comment);
+      return acc;
+    }, {} as Record<string, PersonnelComment[]>);
+  }, [comments]);
+
+  return (
+    <div className="space-y-4">
+      {Object.entries(commentsByPerson).map(([name, personComments]) => (
+        <Card key={name} className="bg-alabaster border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[96px] shadow-lg">
+          <div>
+            <CardHeader className="pb-3">
+                <div className="flex items-center w-full min-h-[80px] gap-6">
+                  <div className="flex items-center gap-3 flex-1 ml-6">
+                    <span className="text-lg text-deep-forest font-bold">{name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowComments(showComments === name ? null : name)}
+                      className="p-1.5 text-bronze hover:[&>svg]:text-alabaster"
+                    >
+                      {showComments === name ? (
+                        <ChevronDown className="w-7 h-7" />
+                      ) : (
+                        <ChevronRight className="w-6 h-6" />
+                      )}
+                    </Button>
+                  </div>
+                  <div className="flex-shrink-0 mr-6">
+                    <Badge variant="outline" className="text-xs border-bronze/30 text-bronze">
+                      {personComments.length} comments
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+          </div>
+          {showComments === name && (
+            <div className="px-6 pb-4">
+              <Separator className="mb-3" style={{ backgroundColor: '#EF842D' }} />
+              <div className="space-y-3 mt-2">
+                {personComments.map((comment) => (
+                  <div key={comment.id} className="flex items-center p-2 bg-deep-forest/15 rounded-md">
+                    <div className="flex-1 text-left ml-8">
+                      <p className="text-xs text-bronze font-bold">
+                        {comment.feedback_text}
+                      </p>
+                    </div>
+                    <div className="flex-1 flex justify-center">
+                      <span className="text-xs text-bronze font-semibold">{new Date(comment.feedback_date).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex-1 flex justify-end mr-8">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="bg-red-500 hover:bg-red-500">
+                            <Trash2 className="w-4 h-4 text-white hover:text-white" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the comment.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="hover:bg-deep-forest">Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDelete(comment.id)} className="bg-red-500 hover:bg-red-600">Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 
 export default function CommentsManager() {
   const router = useRouter()
@@ -84,6 +185,7 @@ export default function CommentsManager() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("general")
   const [showComments, setShowComments] = useState<string | null>(null)
+  const [showPersonnelComments, setShowPersonnelComments] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [personnelDepartmentFilter, setPersonnelDepartmentFilter] = useState("all")
@@ -125,35 +227,47 @@ export default function CommentsManager() {
   }, []);
 
   const handleDelete = async (id: number, type: 'general' | 'personnel') => {
-    if (window.confirm("Are you sure you want to delete this comment? This action cannot be undone.")) {
-      try {
-        const url = type === 'general' ? '/api/general_comm' : '/api/personnel_comm';
-        const res = await fetch(url, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ id }),
-        });
+    try {
+      const url = type === 'general' ? '/api/general_comm' : '/api/personnel_comm';
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id }),
+      });
 
-        if (!res.ok) {
-          throw new Error('Failed to delete comment');
-        }
-
-        if (type === 'general') {
-          setGeneralComments((prev) => prev.filter((comment) => comment.id !== id));
-        } else {
-          setPersonnelComments((prev) => prev.filter((comment) => comment.id !== id));
-        }
-      } catch (err) {
-        setError(err.message);
+      if (!res.ok) {
+        throw new Error('Failed to delete comment');
       }
+
+      if (type === 'general') {
+        setGeneralComments((prev) => prev.filter((comment) => comment.id !== id));
+      } else {
+        setPersonnelComments((prev) => prev.filter((comment) => comment.id !== id));
+      }
+    } catch (err) {
+      setError(err.message);
     }
   };
 
-  const feedbackComments = useMemo(() => generalComments.filter(c => c["comment-type"] === 'Feedback'), [generalComments]);
-  const issueComments = useMemo(() => generalComments.filter(c => c["comment-type"] === 'Issue'), [generalComments]);
-  const reportComments = useMemo(() => generalComments.filter(c => c["comment-type"] === 'Report'), [generalComments]);
+  const feedbackComments = useMemo(() => generalComments.filter(c => c.comment_type === 'Feedback'), [generalComments]);
+  const issueComments = useMemo(() => generalComments.filter(c => c.comment_type === 'Issue'), [generalComments]);
+  const reportComments = useMemo(() => generalComments.filter(c => c.comment_type === 'Report'), [generalComments]);
+
+  const filteredPersonnelComments = useMemo(() => {
+    return personnelComments.filter((comment) => {
+      const matchesSearch =
+        debouncedSearchTerm === "" ||
+        comment.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        comment.department.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        comment.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        comment.feedback_text.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const matchesDepartment =
+        personnelDepartmentFilter === "all" || comment.department === personnelDepartmentFilter;
+      return matchesSearch && matchesDepartment;
+    });
+  }, [personnelComments, debouncedSearchTerm, personnelDepartmentFilter]);
 
   return (
     <div className="space-y-6">
@@ -318,8 +432,8 @@ export default function CommentsManager() {
             </TabsContent>
 
             <TabsContent value="personnel">
-              <Card className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 shadow-lg mb-4">
-                <CardContent className="p-4">
+              <div className="bg-alabaster backdrop-blur-sm border border-deep-forest/20 shadow-lg mb-4">
+                <div className="p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-bronze w-4 h-4" />
@@ -350,52 +464,9 @@ export default function CommentsManager() {
                       </Select>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-              <ul className="space-y-4">
-                {personnelComments
-                  .filter((comment) => {
-                    const matchesSearch =
-                      searchTerm === "" ||
-                      comment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      comment.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      comment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      comment.feedback_text.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesDepartment =
-                      personnelDepartmentFilter === "all" || comment.department === personnelDepartmentFilter;
-                    return matchesSearch && matchesDepartment;
-                  })
-                  .map((comment) => (
-                    <li key={comment.id} className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[120px] shadow-lg flex items-center">
-                        <div className="flex w-full min-h-[120px] items-center ml-6">
-                            <div className="flex-1 flex items-center">
-                                <div className="flex items-center gap-6 w-full">
-                                    <div className="flex flex-col gap-4">
-                                        <span className="text-lg text-deep-forest font-semibold">{comment.name}</span>
-                                        <p className="text-gray-700">{comment.feedback_text}</p>
-                                        <p className="text-xs text-gray-500 mt-2 flex items-center">
-                                            <Calendar className="w-3 h-3 mr-1.5" />
-                                            {new Date(comment.feedback_date).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-center px-6">
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={() => handleDelete(comment.id, 'personnel')}
-                                        className="text-white"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    </li>
-                  ))}
-              </ul>
+                </div>
+              </div>
+              <PersonnelCommentList comments={filteredPersonnelComments} onDelete={(id) => handleDelete(id, 'personnel')} showComments={showPersonnelComments} setShowComments={setShowPersonnelComments} />
             </TabsContent>
           </Tabs>
         </>

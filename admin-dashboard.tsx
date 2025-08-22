@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { LayoutGrid, LogOut, Users, Settings, Building, MessageSquare } from "lucide-react"
-import { MdAccountTree } from "react-icons/md"
+import { LayoutGrid, LogOut, Users, Settings, Building } from "lucide-react"
+import { MdAccountTree, MdInsertComment } from "react-icons/md"
+
 import DepartmentManager from "./components/department-manager"
 import SystemSettings from "./components/system-settings"
 import BlockManager from "./components/block-manager"
@@ -99,7 +100,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
               value="comments" 
               className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-white data-[state=active]:bg-bronze data-[state=active]:text-white rounded-none"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MdInsertComment className="w-4 h-4" />
               Comments
             </TabsTrigger>
             <TabsTrigger 
