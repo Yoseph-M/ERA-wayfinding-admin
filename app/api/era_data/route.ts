@@ -19,19 +19,19 @@ export async function POST(req: NextRequest) {
   try {
     const newRecord = await req.json();
     const {
-      id, block, decat, department, departmentamh, floor, officeno,
-      wcontact, wid, wname, wnameamh, wtitle, wtitleamh
+      id, block, department, departmentamh, floor, officeno,
+      wcontact, wname, wnameamh, wtitle, wtitleamh
     } = newRecord;
 
     const stmt = db.prepare(`
       INSERT INTO era_data (
-        id, block, decat, department, departmentamh, floor, officeno,
-        wcontact, wid, wname, wnameamh, wtitle, wtitleamh
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, block, department, departmentamh, floor, officeno,
+        wcontact, wname, wnameamh, wtitle, wtitleamh
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
-      id, block, decat, department, departmentamh, floor, officeno,
-      wcontact, wid, wname, wnameamh, wtitle, wtitleamh
+      id, block, department, departmentamh, floor, officeno,
+      wcontact, wname, wnameamh, wtitle, wtitleamh
     );
 
     return NextResponse.json({ message: 'Record added successfully', newRecord }, { status: 201 });

@@ -63,7 +63,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           <Button
             variant="outline"
             onClick={handleLogout}
-            className="flex items-center gap-2 bg-transparent hover:bg-[#EF842D] hover:text-white"
+            className="flex items-center gap-2 bg-transparent hover:bg-bronze hover:text-white transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Logout
@@ -77,35 +77,35 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-5 bg-alabaster border border-deep-forest/20 shadow-lg rounded-none">
             <TabsTrigger 
               value="departments" 
-              className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-white data-[state=active]:bg-bronze data-[state=active]:text-white rounded-none"
+              className="flex items-center gap-2 transition-all duration-300 hover:bg-[#B85A1A] hover:text-white data-[state=active]:bg-[#B85A1A] data-[state=active]:text-white rounded-none"
             >
               <MdAccountTree className="w-4 h-4" />
               Departments
             </TabsTrigger>
             <TabsTrigger 
               value="blocks" 
-              className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-white data-[state=active]:bg-bronze data-[state=active]:text-white rounded-none"
+              className="flex items-center gap-2 transition-all duration-300 hover:bg-[#B85A1A] hover:text-white data-[state=active]:bg-[#B85A1A] data-[state=active]:text-white rounded-none"
             >
               <Building className="w-4 h-4" />
               Blocks
             </TabsTrigger>
             <TabsTrigger 
               value="personnel" 
-              className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-white data-[state=active]:bg-bronze data-[state=active]:text-white rounded-none"
+              className="flex items-center gap-2 transition-all duration-300 hover:bg-[#B85A1A] hover:text-white data-[state=active]:bg-[#B85A1A] data-[state=active]:text-white rounded-none"
             >
               <Users className="w-4 h-4" />
               Personnel
             </TabsTrigger>
             <TabsTrigger 
               value="comments" 
-              className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-white data-[state=active]:bg-bronze data-[state=active]:text-white rounded-none"
+              className="flex items-center gap-2 transition-all duration-300 hover:bg-[#B85A1A] hover:text-white data-[state=active]:bg-[#B85A1A] data-[state=active]:text-white rounded-none"
             >
               <MdInsertComment className="w-4 h-4" />
               Comments
             </TabsTrigger>
             <TabsTrigger 
               value="settings" 
-              className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-white data-[state=active]:bg-bronze data-[state=active]:text-white rounded-none"
+              className="flex items-center gap-2 transition-all duration-300 hover:bg-[#B85A1A] hover:text-white data-[state=active]:bg-[#B85A1A] data-[state=active]:text-white rounded-none"
             >
               <Settings className="w-4 h-4" />
               Settings

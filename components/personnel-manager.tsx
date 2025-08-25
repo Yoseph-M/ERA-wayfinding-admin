@@ -1,20 +1,25 @@
+
 "use client"
 
+// Reset file input and error when switching between personnel
+// (must be after hooks are defined)
+
 import { useState, useEffect, useMemo, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Label } from "../components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
+import { Badge } from "../components/ui/badge"
+import { Separator } from "../components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog"
 import { Plus, Edit, Save, X, Search, Trash2 } from "lucide-react"
 import Image from "next/image"
 import { FaUserCircle } from "react-icons/fa"
 import { useRouter } from "next/navigation"
 import { useDebounce } from "@/hooks/use-debounce"
+import { toast } from "@/hooks/use-toast"
 
 type Language = "en" | "am"
 
@@ -24,7 +29,7 @@ interface Personnel {
   position: { en: string; am: string }
   department: { en: string; am: string }
   phoneNumber?: string;
-  photoUrl?: string;
+  photo?: string;
 }
 
 const initialFormData: Partial<Personnel> = {
@@ -32,13 +37,14 @@ const initialFormData: Partial<Personnel> = {
   position: { en: "", am: "" },
   department: { en: "", am: "" },
   phoneNumber: "",
-  photoUrl: "",
+  photo: "",
 };
 
 export default function PersonnelManager() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter()
   const [personnel, setPersonnel] = useState<Personnel[]>([])
-  const [blocks, setBlocks] = useState<any[]>([]) // New state for blocks
+  const [blocks, setBlocks] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -47,12 +53,28 @@ export default function PersonnelManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Personnel>>(initialFormData);
   const [currentLang, setCurrentLang] = useState<Language>("en")
-  const [isFormDirty, setIsFormDirty] = useState(false); // New state for form dirty status
-  const originalFormData = useRef<Partial<Personnel>>(initialFormData); // New ref to store original form data
-  const [saveDialogMessage, setSaveDialogMessage] = useState("Are you sure you want to save these changes?"); // New state
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const originalFormData = useRef<Partial<Personnel>>(initialFormData);
+  const [saveDialogMessage, setSaveDialogMessage] = useState("Are you sure you want to save these changes?");
   const [isSaveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [isCancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  // Dynamically loaded list of available images in public/era_Images
+  const [availableImages, setAvailableImages] = useState<string[]>([]);
+  useEffect(() => {
+    async function fetchImages() {
+      try {
+        const res = await fetch('/api/era_images');
+        if (!res.ok) throw new Error('Failed to fetch images');
+        const data = await res.json();
+        setAvailableImages(data.images || []);
+      } catch (err) {
+        setAvailableImages([]);
+      }
+    }
+    fetchImages();
+  }, []);
 
   const isSaveButtonDisabled = useMemo(() => {
     const isNewEntry = editingId === "new";
@@ -112,18 +134,18 @@ export default function PersonnelManager() {
         "Wrt Misrak Gashaw.jpg"
       ];
 
-                const personnelArr: Personnel[] = data
-            .map((p: any) => {
-              const fullNameEn = p.wname ?? "";
-              return {
-                id: p.id,
-                fullName: { en: fullNameEn, am: p.wnameamh ?? "" },
-                position: { en: p.wtitle ?? "", am: p.wtitleamh ?? "" },
-                department: { en: p.department ?? "", am: p.departmentamh ?? "" },
-                phoneNumber: p.wcontact ?? "",
-                photoUrl: p.photoUrl ?? "",
-              };
-            });
+    const personnelArr: Personnel[] = data
+      .map((p: any) => {
+        const fullNameEn = p.wname ?? "";
+        return {
+          id: p.id,
+          fullName: { en: fullNameEn, am: p.wnameamh ?? "" },
+          position: { en: p.wtitle ?? "", am: p.wtitleamh ?? "" },
+          department: { en: p.department ?? "", am: p.departmentamh ?? "" },
+          phoneNumber: p.wcontact ?? "",
+          photo: p.photo ?? "",
+        };
+      });
       // Only sort by fullName, and handle possible null/empty values
       personnelArr.sort((a, b) => {
         const nameA = a.fullName?.en?.toLowerCase() || "";
@@ -221,17 +243,27 @@ export default function PersonnelManager() {
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => {
-          const newFormData = { ...prev, photoUrl: reader.result as string };
-          setIsFormDirty(!areFormsEqual(newFormData, originalFormData.current));
-          return newFormData;
-        });
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    setPhotoError(null);
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Please select a valid image file.');
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
     }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => {
+        const newFormData = { ...prev, photo: reader.result as string };
+        setIsFormDirty(!areFormsEqual(newFormData, originalFormData.current));
+        return newFormData;
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.onerror = () => {
+      setPhotoError('Failed to read image file.');
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
@@ -253,7 +285,7 @@ export default function PersonnelManager() {
       wcontact: formData.phoneNumber || '',
       department: formData.department?.en,
       departmentamh: formData.department?.am,
-      photoUrl: formData.photoUrl || '',
+      photo: formData.photo || '',
     };
 
     try {
@@ -267,8 +299,40 @@ export default function PersonnelManager() {
         throw new Error(`Failed to ${isNew ? 'add' : 'update'} personnel`);
       }
 
-      await fetchPersonnel(); // Refetch all personnel data
-      handleCancel(); // Close form and reset state, also sets isFormDirty to false
+      const data = await res.json();
+
+      // Optimistically update local state instead of full reload
+      if (isNew) {
+        setPersonnel(prev => [
+          {
+            id: data.id || Math.random().toString(),
+            fullName: { en: formData.fullName?.en || '', am: formData.fullName?.am || '' },
+            position: { en: formData.position?.en || '', am: formData.position?.am || '' },
+            department: { en: formData.department?.en || '', am: formData.department?.am || '' },
+            phoneNumber: formData.phoneNumber || '',
+            photo: formData.photo || '',
+          },
+          ...prev,
+        ]);
+      } else {
+        setPersonnel(prev => prev.map(p =>
+          p.id === editingId
+            ? {
+                ...p,
+                fullName: { en: formData.fullName?.en || '', am: formData.fullName?.am || '' },
+                position: { en: formData.position?.en || '', am: formData.position?.am || '' },
+                department: { en: formData.department?.en || '', am: formData.department?.am || '' },
+                phoneNumber: formData.phoneNumber || '',
+                photo: formData.photo || '',
+              }
+            : p
+        ));
+      }
+      toast({
+        title: `Personnel ${isNew ? 'added' : 'updated'} successfully!`,
+        description: `${formData.fullName?.en || ''} has been ${isNew ? 'added' : 'updated'}.`,
+      });
+      handleCancel();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
     }
@@ -301,7 +365,7 @@ export default function PersonnelManager() {
       form1.department?.en === form2.department?.en &&
       form1.department?.am === form2.department?.am &&
       form1.phoneNumber === form2.phoneNumber &&
-      form1.photoUrl === form2.photoUrl
+      form1.photo === form2.photo
     );
   };
 
@@ -476,22 +540,58 @@ export default function PersonnelManager() {
                       </div>
                       <div>
                         <Label className="text-deep-forest font-medium">Photo</Label>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoUpload}
-                          className="bg-white mt-1 border-deep-forest/30 focus:border-bronze focus:ring-bronze/20"
-                        />
-                        {formData.photoUrl && (
-                          <div className="mt-2 w-24 h-24 relative rounded-full overflow-hidden border border-deep-forest/30">
-                            <Image
-                              src={formData.photoUrl}
+                        {/* Only show avatar preview after image is uploaded/selected */}
+                        {formData.photo && formData.photo !== '' && !photoError && (
+                          <div className="mt-2 mb-2 w-24 h-24 relative rounded-full overflow-hidden border border-deep-forest/30 flex items-center justify-center bg-white">
+                            <img
+                              src={formData.photo}
                               alt="Personnel Photo"
-                              layout="fill"
-                              objectFit="cover"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                setPhotoError('Failed to display image.');
+                              }}
                             />
                           </div>
                         )}
+                        {photoError && (
+                          <div className="text-xs text-red-600 mb-2">{photoError}</div>
+                        )}
+                        {/* Select image from public/era_Images */}
+                        <div className="mb-2">
+                          <Label className="text-deep-forest text-xs">Choose from existing images</Label>
+                          <Select
+                            value={formData.photo && formData.photo.startsWith('/era_Images/') ? formData.photo : ''}
+                            onValueChange={val => {
+                              setFormData(prev => {
+                                const newFormData = { ...prev, photo: val };
+                                setIsFormDirty(!areFormsEqual(newFormData, originalFormData.current));
+                                return newFormData;
+                              });
+                              setPhotoError(null);
+                            }}
+                          >
+                            <SelectTrigger className="w-full mt-1 border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 bg-white text-deep-forest flex justify-center items-center">
+                              <span className="w-full flex justify-center items-center">
+                                <SelectValue 
+                                  placeholder="-- Select an image --"
+                                  className="text-center text-[#888] w-full" 
+                                  style={{ textAlign: 'center', color: '#888', width: '100%' }}
+                                />
+                              </span>
+                            </SelectTrigger>
+                            <SelectContent className="bg-white border-deep-forest/20">
+                              {availableImages.length === 0 ? (
+                                <div className="text-center text-xs text-gray-400 p-2">No images available</div>
+                              ) : (
+                                availableImages.slice().sort((a, b) => a.localeCompare(b)).map(img => (
+                                  <SelectItem key={img} value={`/era_Images/${img}`}>{img}</SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {/* Remove file input field (choose file) as requested */}
                       </div>
                     </div>
                   </div>
@@ -524,11 +624,17 @@ export default function PersonnelManager() {
                           <AlertDialogDescription>{saveDialogMessage}</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setSaveConfirmOpen(false)}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => {
-                            handleSave();
-                            setSaveConfirmOpen(false);
-                          }}>{saveDialogMessage.includes("Please fill in all required fields") || saveDialogMessage.includes("You must make a change to save.") ? "Ok" : "Save"}</AlertDialogAction>
+                          <AlertDialogCancel 
+                            className="hover:bg-deep-forest text-deep-forest" 
+                            onClick={() => setSaveConfirmOpen(false)}
+                          >Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            className="!bg-[#B85A1A] !text-white !shadow-none !ring-0 !filter-none"
+                            onClick={() => {
+                              handleSave();
+                              setSaveConfirmOpen(false);
+                            }}
+                          >{saveDialogMessage.includes("Please fill in all required fields") || saveDialogMessage.includes("You must make a change to save.") ? "Ok" : "Save"}</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -554,11 +660,17 @@ export default function PersonnelManager() {
                           <AlertDialogDescription>Are you sure you want to cancel? Any unsaved changes will be lost.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel className="hover:bg-deep-forest/10" onClick={() => setCancelConfirmOpen(false)}>No, Keep Editing</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => {
-                            handleCancel();
-                            setCancelConfirmOpen(false);
-                          }}>Yes, Cancel</AlertDialogAction>
+                          <AlertDialogCancel 
+                            className="hover:bg-deep-forest" 
+                            onClick={() => setCancelConfirmOpen(false)}
+                          >Keep Editing</AlertDialogCancel>
+                          <AlertDialogAction 
+                            className="!bg-[#B85A1A] !text-alabaster !shadow-none !ring-0 !filter-none"
+                            onClick={() => {
+                              handleCancel();
+                              setCancelConfirmOpen(false);
+                            }}
+                          >Cancel</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -569,22 +681,22 @@ export default function PersonnelManager() {
 
             {/* Personnel List */}
             {!editingId && filteredPersonnel.map((person) => (
-              <Card key={person.id} className="bg- alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[120px] shadow-lg flex items-center">
+              <Card key={person.id} className="bg- alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#B85A1A] transition-colors min-h-[120px] shadow-lg flex items-center">
                 <div className="flex w-full min-h-[120px] items-center ml-6">
                   <div className="flex-1 flex items-center">
                     <div className="flex items-center gap-6 w-full">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-                        {person.photoUrl ? (
+                      <div className="w-14 h-14 rounded-lg flex items-center justify-center">
+                        {person.photo ? (
                           <div className="w-full h-full relative rounded-full overflow-hidden">
                             <Image
-                              src={person.photoUrl}
+                              src={person.photo}
                               alt={person.fullName.en || "Personnel Photo"}
                               layout="fill"
                               objectFit="cover"
                             />
                           </div>
                         ) : (
-                          <FaUserCircle className="w-8 h-8 text-gray-400" />
+                          <FaUserCircle className="w-14 h-14 text-[#B85A1A]" />
                         )}
                       </div>
                       <div className="flex items-center gap-4">
@@ -601,13 +713,13 @@ export default function PersonnelManager() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleEdit(person)}
-                        className="bg-deep-forest hover:bg-deep-forest/90 text-white border border-deep-forest/20 shadow-lg transition-all duration-300 mr-2"
+                        className="!bg-deep-forest !text-white !shadow-none !ring-0 !filter-none border border-deep-forest/20 mr-2"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm" className="text-white" onClick={() => setDeleteConfirmOpen(person.id)}>
+                          <Button variant="destructive" size="sm" className="!bg-red-600 !text-white !shadow-none !ring-0 !filter-none" onClick={() => setDeleteConfirmOpen(person.id)}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </AlertDialogTrigger>
@@ -620,7 +732,7 @@ export default function PersonnelManager() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel className="hover:bg-deep-forest" onClick={() => setDeleteConfirmOpen(null)}>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => { handleDelete(person.id); setDeleteConfirmOpen(null); }} className="bg-red-500 hover:bg-red-600">Delete</AlertDialogAction>
+                            <AlertDialogAction onClick={() => { handleDelete(person.id); setDeleteConfirmOpen(null); }} className="!bg-red-600 !text-white !shadow-none !ring-0 !filter-none">Delete</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>

@@ -1,14 +1,15 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "../components/ui/button"
+import { Input } from "../components/ui/input"
+import { Label } from "../components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
+import { Badge } from "../components/ui/badge"
+import { Separator } from "../components/ui/separator"
+
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select"
 import { Plus, Edit, Save, X, MapPin, Phone, Mail, User, Map, ImageIcon, Trash2, Search, AlertTriangle } from "lucide-react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { FiGrid } from "react-icons/fi"
@@ -18,7 +19,17 @@ import { useDebounce } from "@/hooks/use-debounce"
 
 type Language = "en" | "am"
 
-import { ConfirmDialog } from "./ui/confirm-dialog";
+
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction
+} from "@/components/ui/alert-dialog";
 
 
 interface Department {
@@ -94,7 +105,7 @@ export default function DepartmentManager() {
         wtitleamh: row.wtitleamh || '',
       }))
 
-      departments.sort((a, b) => {
+      departments.sort((a: Department, b: Department) => {
         const nameA = a.name?.toLowerCase() || "";
         const nameB = b.name?.toLowerCase() || "";
         return nameA.localeCompare(nameB);
@@ -234,56 +245,62 @@ export default function DepartmentManager() {
     const isNew = id === 'new';
     const departmentData = isNew ? newDepartment : editForm;
 
+    // Show warning if required fields are missing
     if (!(departmentData.name?.toString() || '').trim() || !(departmentData.building?.toString() || '').trim() || !(departmentData.floor?.toString() || '').trim() || !(departmentData.officeNumber?.toString() || '').trim()) {
       setConfirmDialog({
         isOpen: true,
         title: "Missing Information",
         message: "Please fill in all required fields (Department Name, Block, Floor, Office Number) before saving.",
         variant: "default",
-        onConfirm: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} }),
-      })
-      return
+        onConfirm: () => setConfirmDialog(c => ({ ...c, isOpen: false })),
+      });
+      return;
     }
 
+    // Show warning if no changes
     if (!isNew && !isFormDirty) {
       setConfirmDialog({
         isOpen: true,
         title: "No Changes Detected",
         message: "You must make a change to save.",
         variant: "default",
-        onConfirm: () => setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} }),
-      })
-      return
+        onConfirm: () => setConfirmDialog(c => ({ ...c, isOpen: false })),
+      });
+      return;
     }
 
+    // Confirm save/add
     setConfirmDialog({
       isOpen: true,
-      title: isNew ? "Add New Department" : "Save Changes",
+      title: "Confirm Save",
       message: isNew ? "Are you sure you want to add this department to the system?" : "Are you sure you want to save the changes to this department?",
       variant: "default",
       onConfirm: async () => {
         try {
           const payload = {
             id: isNew ? undefined : id,
-            department: departmentData.name,
-            departmentamh: departmentData.departmentamh,
+            newDepartment: departmentData.name,
+            newDepartmentAmh: departmentData.departmentamh,
             floor: departmentData.floor,
             officeNumber: departmentData.officeNumber,
             building: departmentData.building,
-            oldDepartment: isNew ? undefined : originalDepartmentName,
           };
-
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
             method: isNew ? 'POST' : 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-          })
-
+          });
           if (!res.ok) {
             const errorData = await res.json();
+            setConfirmDialog({
+              isOpen: true,
+              title: 'Department Error',
+              message: errorData.error || `Failed to ${isNew ? 'add' : 'update'} department`,
+              variant: 'destructive',
+              onConfirm: () => setConfirmDialog(c => ({ ...c, isOpen: false })),
+            });
             throw new Error(errorData.error || `Failed to ${isNew ? 'add' : 'update'} department`);
           }
-
           setEditingId(null);
           setEditForm({});
           setNewDepartment({ name: "", floor: "", officeNumber: "", building: "" });
@@ -292,11 +309,16 @@ export default function DepartmentManager() {
           setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
           fetchDepartments();
         } catch (err: any) {
-          alert(`Error ${isNew ? 'adding' : 'updating'} department: ${err instanceof Error ? err.message : 'Unknown error'}`)
-          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
+          setConfirmDialog({
+            isOpen: true,
+            title: 'Department Error',
+            message: `Error ${isNew ? 'adding' : 'updating'} department: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            variant: 'destructive',
+            onConfirm: () => setConfirmDialog(c => ({ ...c, isOpen: false })),
+          });
         }
       }
-    })
+    });
   };
 
   const handleCancel = () => {
@@ -320,8 +342,8 @@ export default function DepartmentManager() {
 
     setConfirmDialog({
       isOpen: true,
-      title: "Discard Changes",
-      message: "You have unsaved changes. Are you sure you want to discard them?",
+      title: "Confirm Cancel",
+      message: "You have unsaved changes. Are you sure you want to cancel them?",
       variant: "destructive",
       onConfirm: () => {
         setEditingId(null);
@@ -345,31 +367,44 @@ export default function DepartmentManager() {
   
 
   // DELETE
-  const handleDelete = (id: string) => {
+  const handleDelete = (departmentName: string) => {
     setConfirmDialog({
       isOpen: true,
-      title: "Delete Department",
+      title: "Are you sure?",
       message: "Are you sure you want to delete this department? This action cannot be undone.",
       variant: "destructive",
-      confirmText: "Delete",
-      cancelText: "Discard",
       onConfirm: async () => {
         try {
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id })
-          })
-          if (!res.ok && res.status !== 204) throw new Error('Failed to delete department')
-          setEditingId(null)
-          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} })
-          fetchDepartments()
+            body: JSON.stringify({ department: departmentName })
+          });
+          if (!res.ok && res.status !== 204) {
+            setConfirmDialog({
+              isOpen: true,
+              title: 'Department Error',
+              message: 'Failed to delete department',
+              variant: 'destructive',
+              onConfirm: () => setConfirmDialog(c => ({ ...c, isOpen: false })),
+            });
+            throw new Error('Failed to delete department');
+          }
+          setEditingId(null);
+          setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: () => {} });
+          fetchDepartments();
         } catch (err: any) {
-          alert('Error deleting department')
+          setConfirmDialog({
+            isOpen: true,
+            title: 'Department Error',
+            message: 'Error deleting department',
+            variant: 'destructive',
+            onConfirm: () => setConfirmDialog(c => ({ ...c, isOpen: false })),
+          });
         }
       }
-    })
-  }
+    });
+  };
 
   const handleAddRecord = () => {
     const id = Date.now().toString()
@@ -391,7 +426,7 @@ export default function DepartmentManager() {
       {isLoading && (
         <div className="flex items-center justify-center p-8">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-bronze mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#B85A1A] mx-auto mb-4"></div>
             <p className="text-deep-forest">Loading departments...</p>
           </div>
         </div>
@@ -399,16 +434,22 @@ export default function DepartmentManager() {
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <h3 className="text-red-800 font-medium mb-2">Error Loading Data</h3>
-          <p className="text-red-600 text-sm">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-2 text-red-600 hover:text-red-800 underline text-sm"
-          >
-            Try again
-          </button>
-        </div>
+        <AlertDialog open={!!error} onOpenChange={() => setError(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Error Loading Data</AlertDialogTitle>
+              <AlertDialogDescription>{error}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="hover:bg-deep-forest/10" onClick={() => setError(null)}>
+                Dismiss
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={() => window.location.reload()}>
+                Try Again
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {/* Main Content: Only show if not loading and not error */}
@@ -420,12 +461,12 @@ export default function DepartmentManager() {
               <h2 className="text-2xl font-bold text-deep-forest">
                 DEPARTMENT MANAGEMENT
               </h2>
-              <p className="text-sm text-bronze mt-1">Manage departments and organizational structure</p>
+              <p className="text-sm text-[#B85A1A] mt-1">Manage departments and organizational structure</p>
             </div>
             {!editingId && (
               <Button 
                 onClick={() => setEditingId('new')} 
-                className="bg-bronze hover:bg-bronze/90 text-white shadow-lg px-6 py-2 font-medium border border-bronze/20 transition-all duration-300"
+                className="!bg-[#B85A1A] !text-white !shadow-none !ring-0 !filter-none px-6 py-2 font-medium border border-[#B85A1A]/20 !hover:bg-[#B85A1A] !focus:bg-[#B85A1A] !active:bg-[#B85A1A]"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 ADD DEPARTMENT
@@ -440,18 +481,18 @@ export default function DepartmentManager() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-bronze w-4 h-4" />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B85A1A] w-4 h-4" />
                       <Input
                         placeholder="Search departments..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-full bg-white border-deep-forest/30 text-deep-forest placeholder:text-deep-forest/60 focus:border-bronze focus:ring-bronze/20"
+                        className="pl-10 w-full bg-white border-deep-forest/30 text-deep-forest placeholder:text-deep-forest/60 focus:border-[#B85A1A] focus:ring-[#B85A1A]/20"
                       />
                     </div>
                     <div className="w-80">
                       <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
                         <SelectTrigger 
-                          className="bg-white border-deep-forest/30 text-deep-forest focus:border-bronze focus:ring-bronze/20"
+                          className="bg-white border-deep-forest/30 text-deep-forest focus:border-[#B85A1A] focus:ring-[#B85A1A]/20"
                         >
                           <SelectValue placeholder="Filter by department" />
                         </SelectTrigger>
@@ -472,11 +513,11 @@ export default function DepartmentManager() {
                               return a.localeCompare(b)
                             })
                             .map((department) => (
-                              <SelectItem key={department} value={department} className="text-deep-forest hover:bg-bronze/10">
+                              <SelectItem key={department} value={department} className="text-deep-forest hover:bg-[#B85A1A]/10">
                                 {department}
                               </SelectItem>
                             ))}
-                          <SelectItem value="all" className="text-deep-forest hover:bg-bronze/10">ALL DEPARTMENTS</SelectItem>
+                          <SelectItem value="all" className="text-deep-forest hover:bg-[#B85A1A]/10">ALL DEPARTMENTS</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -489,7 +530,7 @@ export default function DepartmentManager() {
 
             {/* Department List */}
             {!editingId && filteredDepartments.map((dept) => (
-              <Card key={dept.id} className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[120px] shadow-lg">
+              <Card key={dept.id} className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#B85A1A] transition-colors min-h-[120px] shadow-lg">
                 <div className="flex items-center justify-between h-full">
                   <div className="flex-1">
                     <CardHeader className="pb-3">
@@ -514,7 +555,7 @@ export default function DepartmentManager() {
                       <div className="space-y-3">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-bronze" />
+                            <MapPin className="w-4 h-4 text-[#B85A1A]" />
                             <span className="text-sm text-deep-forest">
                               {dept.building ? `Block ${dept.building}` : ''}
                               {dept.floor ? `${dept.building ? ', ' : ''}Floor ${dept.floor}` : ''}
@@ -524,7 +565,7 @@ export default function DepartmentManager() {
                           {/* Show all custom fields for this department in view mode */}
                           {dept.fields && Object.entries(dept.fields).map(([key, value]) => (
                             <div key={key} className="flex items-center gap-2">
-                              <span className="font-medium text-bronze">{key}:</span> <span className="text-deep-forest">{value}</span>
+                              <span className="font-medium text-[#B85A1A]">{key}:</span> <span className="text-deep-forest">{value}</span>
                             </div>
                           ))}
                         </div>
@@ -537,15 +578,15 @@ export default function DepartmentManager() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleEdit(dept)}
-                        className="bg-deep-forest hover:bg-deep-forest/90 text-white border border-deep-forest/20 shadow-lg transition-all duration-300 mr-2"
+                        className="!bg-deep-forest !text-white !shadow-none !ring-0 !filter-none border border-deep-forest/20 mr-2"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleDelete(dept.id)}
-                        className="text-white"
+                        onClick={() => handleDelete(dept.name)}
+                        className="!bg-red-600 !text-white !shadow-none !ring-0 !filter-none"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -579,15 +620,15 @@ export default function DepartmentManager() {
                         Department Information
                       </h4>
                       <ToggleGroup type="single" value={currentLang} onValueChange={(lang: Language) => lang && setCurrentLang(lang)} className="bg-white border border-deep-forest/30">
-                          <ToggleGroupItem value="en" className={`px-4 py-1 text-deep-forest font-medium border-none outline-none ${currentLang === "en" ? "bg-bronze text-white !rounded-none !shadow-none border-b-2 border-bronze" : "hover:bg-bronze/10 !rounded-none !shadow-none"}`}>EN</ToggleGroupItem>
-                          <ToggleGroupItem value="am" className={`px-4 py-1 text-deep-forest font-medium border-none outline-none ${currentLang === "am" ? "bg-bronze text-white !rounded-none !shadow-none border-b-2 border-bronze" : "hover:bg-bronze/10 !rounded-none !shadow-none"}`}>AM</ToggleGroupItem>
+                          <ToggleGroupItem value="en" className={`px-4 py-1 text-deep-forest font-medium border-none outline-none ${currentLang === "en" ? "bg-[#B85A1A] text-white !rounded-none !shadow-none border-b-2 border-[#B85A1A]" : "hover:bg-[#B85A1A]/10 !rounded-none !shadow-none"}`}>EN</ToggleGroupItem>
+                          <ToggleGroupItem value="am" className={`px-4 py-1 text-deep-forest font-medium border-none outline-none ${currentLang === "am" ? "bg-[#B85A1A] text-white !rounded-none !shadow-none border-b-2 border-[#B85A1A]" : "hover:bg-[#B85A1A]/10 !rounded-none !shadow-none"}`}>AM</ToggleGroupItem>
                       </ToggleGroup>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                       <div className="md:col-span-12">
                         <Label className="text-deep-forest font-medium">Department Name ({currentLang.toUpperCase()})</Label>
                         <Input
-                          value={currentLang === 'en' ? (editingId === 'new' ? newDepartment.name : editForm.name) : (editingId === 'new' ? newDepartment.departmentamh : editForm.departmentamh)}
+                          value={currentLang === 'en' ? (editingId === 'new' ? (newDepartment.name ?? "") : (editForm.name ?? "")) : (editingId === 'new' ? (newDepartment.departmentamh ?? "") : (editForm.departmentamh ?? ""))}
                           onChange={e => {
                             const value = e.target.value;
                             const field = currentLang === 'en' ? 'name' : 'departmentamh';
@@ -598,13 +639,13 @@ export default function DepartmentManager() {
                             }
                           }}
                           placeholder={`Enter department name in ${currentLang === 'en' ? 'English' : 'Amharic'}`}
-                          className="bg-white border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1"
+                          className="bg-white border-deep-forest/30 focus:border-[#B85A1A] focus:ring-[#B85A1A]/20 mt-1"
                         />
                       </div>
                       <div className="md:col-span-4">
                         <Label className="text-deep-forest font-medium">Block</Label>
                         <Select
-                          value={editingId === 'new' ? newDepartment.building : editForm.building}
+                          value={editingId === 'new' ? (newDepartment.building ?? "") : (editForm.building ?? "")}
                           onValueChange={val => {
                             if (editingId === 'new') {
                               setNewDepartment(f => ({ ...f, building: val }));
@@ -613,12 +654,12 @@ export default function DepartmentManager() {
                             }
                           }}
                         >
-                          <SelectTrigger className="border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1 bg-white text-deep-forest">
+                          <SelectTrigger className="border-deep-forest/30 focus:border-[#B85A1A] focus:ring-[#B85A1A]/20 mt-1 bg-white text-deep-forest">
                             <SelectValue placeholder="Select block" />
                           </SelectTrigger>
                           <SelectContent className="bg-white border-deep-forest/20">
                             {blockOptions.map(block => (
-                              <SelectItem key={block} value={block} className="text-deep-forest hover:bg-bronze/10">{block}</SelectItem>
+                              <SelectItem key={block} value={block} className="text-deep-forest hover:bg-[#B85A1A]/10">{block}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -626,7 +667,7 @@ export default function DepartmentManager() {
                       <div className="md:col-span-4">
                         <Label className="text-deep-forest font-medium">Floor</Label>
                         <Select
-                          value={editingId === 'new' ? newDepartment.floor : editForm.floor}
+                          value={editingId === 'new' ? (newDepartment.floor ?? "") : (editForm.floor ?? "")}
                           onValueChange={val => {
                             if (editingId === 'new') {
                               setNewDepartment(f => ({ ...f, floor: val }));
@@ -635,12 +676,12 @@ export default function DepartmentManager() {
                             }
                           }}
                         >
-                          <SelectTrigger className="border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1 bg-white text-deep-forest">
+                          <SelectTrigger className="border-deep-forest/30 focus:border-[#B85A1A] focus:ring-[#B85A1A]/20 mt-1 bg-white text-deep-forest">
                             <SelectValue placeholder="Select floor" />
                           </SelectTrigger>
                           <SelectContent className="bg-white border-deep-forest/20">
                             {floorOptions.map(floor => (
-                              <SelectItem key={floor} value={floor} className="text-deep-forest hover:bg-bronze/10">{floor}</SelectItem>
+                              <SelectItem key={floor} value={floor} className="text-deep-forest hover:bg-[#B85A1A]/10">{floor}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -648,7 +689,7 @@ export default function DepartmentManager() {
                       <div className="md:col-span-4">
                         <Label className="text-deep-forest font-medium">Office Number</Label>
                         <Select
-                          value={editingId === 'new' ? newDepartment.officeNumber : editForm.officeNumber}
+                          value={editingId === 'new' ? (newDepartment.officeNumber ?? "") : (editForm.officeNumber ?? "")}
                           onValueChange={val => {
                             if (editingId === 'new') {
                               setNewDepartment(f => ({ ...f, officeNumber: val }));
@@ -657,12 +698,12 @@ export default function DepartmentManager() {
                             }
                           }}
                         >
-                          <SelectTrigger className="border-deep-forest/30 focus:border-bronze focus:ring-bronze/20 mt-1 bg-white text-deep-forest">
+                          <SelectTrigger className="border-deep-forest/30 focus:border-[#B85A1A] focus:ring-[#B85A1A]/20 mt-1 bg-white text-deep-forest">
                             <SelectValue placeholder="Select office number" />
                           </SelectTrigger>
                           <SelectContent className="bg-white border-deep-forest/20">
                             {officeOptions.map(office => (
-                              <SelectItem key={office} value={office} className="text-deep-forest hover:bg-bronze/10">{office}</SelectItem>
+                              <SelectItem key={office} value={office} className="text-deep-forest hover:bg-[#B85A1A]/10">{office}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -674,7 +715,7 @@ export default function DepartmentManager() {
                   <div className="flex flex-col sm:flex-row gap-3 justify-end">
                     <Button
                       onClick={() => handleSave(editingId)}
-                      className="bg-bronze hover:bg-bronze/90 text-white"
+                      className="!bg-[#B85A1A] !text-white !shadow-none !ring-0 !filter-none !hover:bg-[#B85A1A] !focus:bg-[#B85A1A] !active:bg-[#B85A1A]"
                       disabled={editingId === 'new' ? !(newDepartment.name?.trim() && newDepartment.building?.trim() && newDepartment.floor?.trim() && newDepartment.officeNumber?.trim()) : !isFormDirty}
                     >
                       <Save className="w-4 h-4 mr-2" />
@@ -683,7 +724,7 @@ export default function DepartmentManager() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="border-deep-forest/30 text-deep-forest hover:bg-deep-forest hover:text-alabaster min-w-[160px]"
+                      className="!bg-deep-forest !text-alabaster !shadow-none !ring-0 !filter-none min-w-[160px] !hover:bg-deep-forest !focus:bg-deep-forest !active:bg-deep-forest"
                       onClick={() => handleCancel()}
                     >
                       <X className="w-4 h-4 mr-2" />
@@ -697,15 +738,50 @@ export default function DepartmentManager() {
         </>
       )}
 
-      {/* Custom Confirm Dialog */}
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        onConfirm={confirmDialog.onConfirm}
-        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
-        variant={confirmDialog.variant}
-      />
+      {/* Custom Confirm Dialog (replaces warning cards) */}
+      <AlertDialog open={confirmDialog.isOpen} onOpenChange={open => setConfirmDialog(c => ({ ...c, isOpen: open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDialog.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className={
+                confirmDialog.title === 'Confirm Cancel'
+                  ? (confirmDialog.variant === 'destructive'
+                      ? '!bg-deep-forest !text-alabaster !shadow-none !ring-0 !filter-none !hover:bg-deep-forest !focus:bg-deep-forest !active:bg-deep-forest'
+                      : '!bg-[#B85A1A] !text-white !shadow-none !ring-0 !filter-none !hover:bg-[#B85A1A] !focus:bg-[#B85A1A] !active:bg-[#B85A1A]')
+                  : confirmDialog.title === 'Are you sure?'
+                  ? '!bg-deep-forest !text-alabaster !shadow-none !ring-0 !filter-none'
+                  : confirmDialog.title === 'Confirm Save'
+                  ? '!bg-deep-forest !text-alabaster !shadow-none !ring-0 !filter-none'
+                  : ''
+              }
+              onClick={() => setConfirmDialog(c => ({ ...c, isOpen: false }))}
+            >
+              {confirmDialog.title === 'Confirm Cancel' ? 'Keep Editing' : 'Cancel'}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={
+                confirmDialog.variant === 'destructive' && confirmDialog.title === 'Confirm Cancel'
+                  ? ''
+                  : confirmDialog.variant === 'destructive'
+                  ? '!bg-red-600 !text-white !shadow-none !ring-0 !filter-none !hover:bg-red-600 !focus:bg-red-600 !active:bg-red-600'
+                  : confirmDialog.title === 'Confirm Save'
+                  ? '!bg-[#B85A1A] !text-white !shadow-none !ring-0 !filter-none !hover:bg-[#B85A1A] !focus:bg-[#B85A1A] !active:bg-[#B85A1A]'
+                  : ''
+              }
+              onClick={() => {
+                confirmDialog.onConfirm();
+                setConfirmDialog(c => ({ ...c, isOpen: false }));
+              }}
+            >
+              {confirmDialog.title === 'Confirm Cancel' ? 'Cancel' : confirmDialog.variant === 'destructive' ? 'Delete' : confirmDialog.title === 'Confirm Save' ? 'Save' : 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

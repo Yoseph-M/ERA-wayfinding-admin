@@ -3,12 +3,12 @@
 import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Card, CardHeader } from "../components/ui/card"
+import { Badge } from "../components/ui/badge"
+import { Separator } from "../components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../components/ui/alert-dialog"
 import { Search, Trash2, ChevronDown, ChevronRight } from "lucide-react"
 import { TbReportAnalytics } from "react-icons/tb";
 import { RiFeedbackFill } from "react-icons/ri";
@@ -34,31 +34,21 @@ interface PersonnelComment {
 }
 
 function GeneralCommentList({ comments, onDelete }: { comments: GeneralComment[], onDelete: (id: number) => void }) {
-  const sortedComments = useMemo(() => {
-    return [...comments].sort((a, b) => a.comment_type.localeCompare(b.comment_type));
-  }, [comments]);
-
+  // This list should only render the flat list of comments passed to it, not group or card them again.
   return (
     <div className="px-6 pb-4">
-      <Separator className="mb-3" style={{ backgroundColor: '#EF842D' }} />
+      <Separator className="mb-3" style={{ backgroundColor: '#B85A1A' }} />
       <div className="space-y-3 mt-2">
-        {sortedComments.length > 0 ? (
-          sortedComments.map((comment) => (
+        {comments.length > 0 ? (
+          comments.map((comment) => (
             <div key={comment.id} className="flex items-center p-2 bg-deep-forest/15 rounded-md">
-              {/* Left Section: Comment Text */}
-              <div className="flex-1 text-left ml-8">
-                <p className="text-xs text-bronze font-bold">
+              <div className="flex-1 text-left ml-8 min-w-[180px] mr-2">
+                <p className="text-xxs text-[#B85A1A] font-bold break-words whitespace-pre-line leading-relaxed">
                   {comment.comment}
                 </p>
               </div>
-
-              {/* Middle Section: Date */}
-              <div className="flex-1 flex justify-center">
-                <span className="text-xs text-bronze font-semibold">{new Date(comment.date).toLocaleDateString()}</span>
-              </div>
-
-              {/* Right Section: Delete Button */}
-              <div className="flex-1 flex justify-end mr-8">
+              <div className="flex items-center justify-end gap-8 flex-1 mr-6 min-w-[150px]">
+                <span className="text-xxs text-[#B85A1A] font-semibold whitespace-nowrap mr-20">{new Date(comment.date).toLocaleDateString()}</span>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="icon" className="bg-red-500 hover:bg-red-500">
@@ -74,7 +64,7 @@ function GeneralCommentList({ comments, onDelete }: { comments: GeneralComment[]
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel className="hover:bg-deep-forest">Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onDelete(comment.id)} className="bg-red-500 hover:bg-red-600">Delete</AlertDialogAction>
+                      <AlertDialogAction onClick={() => onDelete(comment.id)} className="!bg-red-600 !text-white !shadow-none !ring-0 !filter-none">Delete</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -109,18 +99,22 @@ function PersonnelCommentList({ comments, onDelete, showComments, setShowComment
                 <div className="flex items-center w-full min-h-[80px] gap-6">
                   <div className="flex items-center gap-3 flex-1 ml-6">
                     <span className="text-lg text-deep-forest font-bold">{name}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={() => setShowComments(showComments === name ? null : name)}
-                      className="p-1.5 text-bronze hover:[&>svg]:text-alabaster"
+                      className="p-0 border-none outline-none bg-transparent focus:outline-none focus:ring-0"
+                      style={{ boxShadow: 'none' }}
                     >
                       {showComments === name ? (
-                        <ChevronDown className="w-7 h-7" />
+                        <span className="w-8 h-8 flex items-center justify-center rounded-full transition-colors bg-transparent hover:bg-[#B85A1A] group">
+                          <ChevronDown className="w-5 h-5 text-[#B85A1A] group-hover:text-alabaster transition-colors" />
+                        </span>
                       ) : (
-                        <ChevronRight className="w-6 h-6" />
+                        <span className="w-8 h-8 flex items-center justify-center rounded-full transition-colors bg-transparent hover:bg-[#B85A1A] group">
+                          <ChevronRight className="w-5 h-5 text-[#B85A1A] group-hover:text-alabaster transition-colors" />
+                        </span>
                       )}
-                    </Button>
+                    </button>
                   </div>
                   <div className="flex-shrink-0 mr-6">
                     <Badge variant="outline" className="text-xs border-bronze/30 text-bronze">
@@ -132,23 +126,21 @@ function PersonnelCommentList({ comments, onDelete, showComments, setShowComment
           </div>
           {showComments === name && (
             <div className="px-6 pb-4">
-              <Separator className="mb-3" style={{ backgroundColor: '#EF842D' }} />
+      <Separator className="mb-3" style={{ backgroundColor: '#B85A1A' }} />
               <div className="space-y-3 mt-2">
                 {personComments.map((comment) => (
                   <div key={comment.id} className="flex items-center p-2 bg-deep-forest/15 rounded-md">
-                    <div className="flex-1 text-left ml-8">
-                      <p className="text-xs text-bronze font-bold">
+                    <div className="flex-1 text-left ml-8 min-w-[180px] mr-2">
+                      <p className="text-xxs text-[#B85A1A] font-bold break-words whitespace-pre-line leading-relaxed">
                         {comment.feedback_text}
                       </p>
                     </div>
-                    <div className="flex-1 flex justify-center">
-                      <span className="text-xs text-bronze font-semibold">{new Date(comment.feedback_date).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex-1 flex justify-end mr-8">
+                    <div className="flex items-center justify-end gap-8 flex-1 mr-6 min-w-[120px]">
+                      <span className="text-xxs text-[#B85A1A] font-semibold whitespace-nowrap mr-20">{new Date(comment.feedback_date).toLocaleDateString()}</span>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="icon" className="bg-red-500 hover:bg-red-500">
-                            <Trash2 className="w-4 h-4 text-white hover:text-white" />
+                            <Trash2 className="w-4 h-4 text-white hover:text-white " />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -160,7 +152,7 @@ function PersonnelCommentList({ comments, onDelete, showComments, setShowComment
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel className="hover:bg-deep-forest">Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDelete(comment.id)} className="bg-red-500 hover:bg-red-600">Delete</AlertDialogAction>
+                            <AlertDialogAction onClick={() => onDelete(comment.id)} className="!bg-red-600 !text-white !shadow-none !ring-0 !filter-none">Delete</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -189,6 +181,9 @@ export default function CommentsManager() {
   const [searchTerm, setSearchTerm] = useState("")
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [personnelDepartmentFilter, setPersonnelDepartmentFilter] = useState("all")
+  // Block-manager style: Only show one card/search at a time if a dropdown is open
+  const onlyShowGeneral = showComments && ['feedback', 'issue', 'report'].includes(showComments);
+  const onlyShowPersonnel = !!showPersonnelComments;
 
   // Check authentication
   useEffect(() => {
@@ -218,7 +213,7 @@ export default function CommentsManager() {
         setGeneralComments(generalData);
         setPersonnelComments(personnelData);
       } catch (err) {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
         setIsLoading(false);
       }
@@ -247,7 +242,7 @@ export default function CommentsManager() {
         setPersonnelComments((prev) => prev.filter((comment) => comment.id !== id));
       }
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
   };
 
@@ -306,13 +301,13 @@ export default function CommentsManager() {
             <TabsList className="grid w-full grid-cols-2 bg-alabaster border border-deep-forest/20 shadow-lg">
               <TabsTrigger
                 value="general"
-                className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-white data-[state=active]:bg-bronze data-[state=active]:text-alabaster rounded-none"
+                className="flex items-center gap-2 transition-all duration-300 hover:bg-[#B85A1A] hover:text-alabaster data-[state=active]:bg-[#B85A1A] data-[state=active]:text-alabaster rounded-none"
               >
                 General Comments
               </TabsTrigger>
               <TabsTrigger
                 value="personnel"
-                className="flex items-center gap-2 transition-all duration-300 hover:bg-bronze hover:text-alabaster data-[state=active]:bg-bronze data-[state=active]:text-alabaster rounded-none"
+                className="flex items-center gap-2 transition-all duration-300 hover:bg-[#B85A1A] hover:text-alabaster data-[state=active]:bg-[#B85A1A] data-[state=active]:text-alabaster rounded-none"
               >
                 Personnel Comments
               </TabsTrigger>
@@ -320,153 +315,159 @@ export default function CommentsManager() {
 
             <TabsContent value="general">
               <div className="space-y-4">
-                <Card className="bg-alabaster border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[96px] shadow-lg">
-                  <div>
-                    <div className="flex-1">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center w-full min-h-[80px] gap-6">
-                          <div className="flex items-center gap-3 flex-1 ml-6">
-                            <div className="w-8 h-8 flex items-center justify-center font-semibold text-lg text-bronze">
-                              <RiFeedbackFill />
+                {/* Only show one general card if a dropdown is open, else show all, like Personnel */}
+                {/* General comments: collapsed by default, expand on click, like personnel */}
+                {showComments && ['feedback', 'issue', 'report'].includes(showComments) ? (
+                  (() => {
+                    let Icon, label, comments;
+                    if (showComments === 'feedback') {
+                      Icon = RiFeedbackFill;
+                      label = 'Feedback';
+                      comments = feedbackComments;
+                    } else if (showComments === 'issue') {
+                      Icon = FaBug;
+                      label = 'Issue';
+                      comments = issueComments;
+                    } else {
+                      Icon = TbReportAnalytics;
+                      label = 'Report';
+                      comments = reportComments;
+                    }
+                    return (
+                      <Card key={showComments} className="bg-alabaster border border-deep-forest/20 hover:border-2 hover:border-[#B85A1A] transition-colors min-h-[96px] shadow-lg">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center w-full min-h-[80px] gap-6">
+                            <div className="flex items-center gap-3 flex-1 ml-6">
+                              <div className="w-8 h-8 flex items-center justify-center font-semibold text-lg text-bronze">
+                                <Icon />
+                              </div>
+                              <span className="text-lg text-deep-forest font-bold">{label}</span>
+                              <button
+                                type="button"
+                                onClick={() => setShowComments(null)}
+                                className="p-0 border-none outline-none bg-transparent focus:outline-none focus:ring-0"
+                                style={{ boxShadow: 'none' }}
+                              >
+                                <span className="w-8 h-8 flex items-center justify-center rounded-full transition-colors bg-transparent hover:bg-[#B85A1A] group">
+                                  <ChevronDown className="w-5 h-5 text-[#B85A1A] group-hover:text-alabaster transition-colors" />
+                                </span>
+                              </button>
                             </div>
-                            <span className="text-lg text-deep-forest font-bold">Feedback</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setShowComments(showComments === 'feedback' ? null : 'feedback')}
-                              className="p-1.5 text-bronze hover:[&>svg]:text-alabaster"
-                            >
-                              {showComments === 'feedback' ? (
-                                <ChevronDown className="w-7 h-7" />
-                              ) : (
-                                <ChevronRight className="w-6 h-6" />
-                              )}
-                            </Button>
-                          </div>
-                          <div className="flex-shrink-0 mr-6">
-                            <Badge variant="outline" className="text-xs border-bronze/30 text-bronze">
-                              {feedbackComments.length} comments
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardHeader>
-                    </div>
-                  </div>
-                  {showComments === 'feedback' && (
-                    <GeneralCommentList comments={feedbackComments} onDelete={(id) => handleDelete(id, 'general')} />
-                  )}
-                </Card>
-                <Card className="bg-alabaster border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[96px] shadow-lg">
-                  <div>
-                    <div className="flex-1">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center w-full min-h-[80px] gap-6">
-                          <div className="flex items-center gap-3 flex-1 ml-6">
-                            <div className="w-8 h-8 flex items-center justify-center font-semibold text-lg text-bronze">
-                              <FaBug />
+                            <div className="flex-shrink-0 mr-6">
+                              <Badge variant="outline" className="text-xs border-[#B85A1A]/30 text-[#B85A1A]">
+                                {comments.length} comments
+                              </Badge>
                             </div>
-                            <span className="text-lg text-deep-forest font-bold">Issue</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setShowComments(showComments === 'issue' ? null : 'issue')}
-                              className="p-1.5 text-bronze hover:[&>svg]:text-alabaster"
-                            >
-                              {showComments === 'issue' ? (
-                                <ChevronDown className="w-7 h-7" />
-                              ) : (
-                                <ChevronRight className="w-6 h-6" />
-                              )}
-                            </Button>
                           </div>
-                          <div className="flex-shrink-0 mr-6">
-                            <Badge variant="outline" className="text-xs border-bronze/30 text-bronze">
-                              {issueComments.length} comments
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardHeader>
-                    </div>
-                  </div>
-                  {showComments === 'issue' && (
-                    <GeneralCommentList comments={issueComments} onDelete={(id) => handleDelete(id, 'general')} />
-                  )}
-                </Card>
-                <Card className="bg-alabaster border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[96px] shadow-lg">
-                  <div>
-                    <div className="flex-1">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center w-full min-h-[80px] gap-6">
-                          <div className="flex items-center gap-3 flex-1 ml-6">
-                            <div className="w-8 h-8 flex items-center justify-center font-semibold text-lg text-bronze">
-                              <TbReportAnalytics />
+                        </CardHeader>
+                        <GeneralCommentList comments={comments} onDelete={(id) => handleDelete(id, 'general')} />
+                      </Card>
+                    );
+                  })()
+                ) : (
+                  ['feedback', 'issue', 'report'].map((type) => {
+                    let Icon, label, comments;
+                    if (type === 'feedback') {
+                      Icon = RiFeedbackFill;
+                      label = 'Feedback';
+                      comments = feedbackComments;
+                    } else if (type === 'issue') {
+                      Icon = FaBug;
+                      label = 'Issue';
+                      comments = issueComments;
+                    } else {
+                      Icon = TbReportAnalytics;
+                      label = 'Report';
+                      comments = reportComments;
+                    }
+                    return (
+                      <Card key={type} className="bg-alabaster border border-deep-forest/20 hover:border-2 hover:border-[#B85A1A] transition-colors min-h-[96px] shadow-lg">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center w-full min-h-[80px] gap-6">
+                            <div className="flex items-center gap-3 flex-1 ml-6">
+                              <div className="w-8 h-8 flex items-center justify-center font-semibold text-lg text-bronze">
+                                <Icon />
+                              </div>
+                              <span className="text-lg text-deep-forest font-bold">{label}</span>
+                              <button
+                                type="button"
+                                onClick={() => setShowComments(type)}
+                                className="p-0 border-none outline-none bg-transparent focus:outline-none focus:ring-0"
+                                style={{ boxShadow: 'none' }}
+                              >
+                                <span className="w-8 h-8 flex items-center justify-center rounded-full transition-colors bg-transparent hover:bg-[#B85A1A] group">
+                                  <ChevronRight className="w-5 h-5 text-[#B85A1A] group-hover:text-alabaster transition-colors" />
+                                </span>
+                              </button>
                             </div>
-                            <span className="text-lg text-deep-forest font-bold">Report</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setShowComments(showComments === 'report' ? null : 'report')}
-                              className="p-1.5 text-bronze hover:[&>svg]:text-alabaster"
-                            >
-                              {showComments === 'report' ? (
-                                <ChevronDown className="w-7 h-7" />
-                              ) : (
-                                <ChevronRight className="w-6 h-6" />
-                              )}
-                            </Button>
+                            <div className="flex-shrink-0 mr-6">
+                              <Badge variant="outline" className="text-xs border-[#B85A1A]/30 text-[#B85A1A]">
+                                {comments.length} comments
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="flex-shrink-0 mr-6">
-                            <Badge variant="outline" className="text-xs border-bronze/30 text-bronze">
-                              {reportComments.length} comments
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardHeader>
-                    </div>
-                  </div>
-                  {showComments === 'report' && (
-                    <GeneralCommentList comments={reportComments} onDelete={(id) => handleDelete(id, 'general')} />
-                  )}
-                </Card>
+                        </CardHeader>
+                      </Card>
+                    );
+                  })
+                )}
               </div>
             </TabsContent>
 
             <TabsContent value="personnel">
-              <div className="bg-alabaster backdrop-blur-sm border border-deep-forest/20 shadow-lg mb-4">
-                <div className="p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-bronze w-4 h-4" />
-                      <Input
-                        placeholder="Search personnel comments..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-full bg-white border-deep-forest/30 text-deep-forest placeholder:text-deep-forest/60 focus:border-bronze focus:ring-bronze/20"
-                      />
-                    </div>
-                    <div className="w-80">
-                      <Select value={personnelDepartmentFilter} onValueChange={setPersonnelDepartmentFilter}>
-                        <SelectTrigger
-                          className="bg-white border-deep-forest/30 text-deep-forest focus:border-bronze focus:ring-bronze/20"
-                        >
-                          <SelectValue placeholder="Filter by department" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border-deep-forest/20">
-                          {Array.from(new Set(personnelComments.map(comment => comment.department).filter(department => department && department.trim() !== "")))
-                            .sort((a, b) => a.localeCompare(b))
-                            .map((department) => (
-                              <SelectItem key={department} value={department} className="text-deep-forest hover:bg-bronze/10">
-                                {department}
-                              </SelectItem>
-                            ))}
-                          <SelectItem value="all" className="text-deep-forest hover:bg-bronze/10">ALL DEPARTMENTS</SelectItem>
-                        </SelectContent>
-                      </Select>
+              {/* Only show search/filter bar if no personnel dropdown is open */}
+              {!onlyShowPersonnel && (
+                <div className="bg-alabaster backdrop-blur-sm border border-deep-forest/20 shadow-lg mb-4">
+                  <div className="p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-bronze w-4 h-4" />
+                        <Input
+                          placeholder="Search personnel comments..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10 w-full bg-white border-deep-forest/30 text-deep-forest placeholder:text-deep-forest/60 focus:border-bronze focus:ring-bronze/20"
+                        />
+                      </div>
+                      <div className="w-80">
+                        <Select value={personnelDepartmentFilter} onValueChange={setPersonnelDepartmentFilter}>
+                          <SelectTrigger
+                            className="bg-white border-deep-forest/30 text-deep-forest focus:border-bronze focus:ring-bronze/20"
+                          >
+                            <SelectValue placeholder="Filter by department" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border-deep-forest/20">
+                            {Array.from(new Set(personnelComments.map(comment => comment.department).filter(department => department && department.trim() !== "")))
+                              .sort((a, b) => a.localeCompare(b))
+                              .map((department) => (
+                                <SelectItem key={department} value={department} className="text-deep-forest hover:bg-bronze/10">
+                                  {department}
+                                </SelectItem>
+                              ))}
+                            <SelectItem value="all" className="text-deep-forest hover:bg-bronze/10">ALL DEPARTMENTS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <PersonnelCommentList comments={filteredPersonnelComments} onDelete={(id) => handleDelete(id, 'personnel')} showComments={showPersonnelComments} setShowComments={setShowPersonnelComments} />
+              )}
+              {/* Only show the expanded personnel card if a dropdown is open, else show all */}
+              {onlyShowPersonnel ? (
+                <PersonnelCommentList
+                  comments={filteredPersonnelComments.filter(c => c.name === showPersonnelComments)}
+                  onDelete={(id) => handleDelete(id, 'personnel')}
+                  showComments={showPersonnelComments}
+                  setShowComments={setShowPersonnelComments}
+                />
+              ) : (
+                <PersonnelCommentList
+                  comments={filteredPersonnelComments}
+                  onDelete={(id) => handleDelete(id, 'personnel')}
+                  showComments={null}
+                  setShowComments={setShowPersonnelComments}
+                />
+              )}
             </TabsContent>
           </Tabs>
         </>

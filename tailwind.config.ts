@@ -28,7 +28,7 @@ const config: Config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#CD7F32", // Bronze
+          DEFAULT: "#B85A1A", // Bronze
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -44,7 +44,7 @@ const config: Config = {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "#CD7F32", // Bronze
+          DEFAULT: "#B85A1A", // Bronze
           foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
@@ -74,7 +74,7 @@ const config: Config = {
         },
         // Custom color palette
         "deep-forest": "#1C2B2D",
-        "bronze": "#CD7F32",
+        "bronze": "#B85A1A",
         "alabaster": "#F5F5F5",
       },
       borderRadius: {

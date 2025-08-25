@@ -162,7 +162,6 @@ export default function BlockManager() {
       // Reset form and refresh data
       setNewDeptName('')
       fetchBlocks()
-      alert(`Successfully ${exists ? 'updated' : 'added'} department`)
     } catch (err: any) {
       console.error('Error managing department:', err)
       alert(err.message || 'Failed to manage department')
@@ -211,7 +210,7 @@ export default function BlockManager() {
       {isLoading ? (
         <div className="flex items-center justify-center p-8">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-bronze mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#B85A1A] mx-auto mb-4"></div>
             <p className="text-deep-forest">Loading blocks...</p>
           </div>
         </div>
@@ -223,24 +222,27 @@ export default function BlockManager() {
               <h2 className="text-2xl font-bold text-deep-forest">
                 BLOCK MANAGEMENT
               </h2>
-              <p className="text-sm text-bronze mt-1">Manage building blocks, departments, and locations</p>
+              <p className="text-sm text-[#B85A1A] mt-1">Manage building blocks, departments, and locations</p>
             </div>
           </div>
 
-          {/* Search Input */}
-          <Card className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 shadow-lg">
-            <CardContent className="p-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-bronze w-4 h-4" />
-                <Input
-                  placeholder="Search blocks..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full bg-white border-deep-forest/30 text-deep-forest placeholder:text-deep-forest/60 focus:border-bronze focus:ring-bronze/20"
-                />
-              </div>
-            </CardContent>
-          </Card>
+
+          {/* Search Input: Only show if no block dropdown is open */}
+          {!showDepartments && (
+            <Card className="bg-alabaster backdrop-blur-xl border border-deep-forest/20 shadow-lg">
+              <CardContent className="p-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#B85A1A] w-4 h-4" />
+                  <Input
+                    placeholder="Search blocks..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full bg-white border-deep-forest/30 text-deep-forest placeholder:text-deep-forest/60 focus:border-[#B85A1A] focus:ring-[#B85A1A]/20"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Error State */}
           {error && (
@@ -249,15 +251,15 @@ export default function BlockManager() {
               <p className="text-red-600 text-sm">{error}</p>
               <button 
                 onClick={() => window.location.reload()} 
-                className="mt-2 px-4 py-2 bg-bronze text-white rounded shadow"
+                className="mt-2 px-4 py-2 bg-[#B85A1A] text-white rounded shadow"
               >
                 Reload
               </button>
             </div>
           )}
 
-          {/* Blocks List: Only show if not error */}
-          {!error && (
+          {/* Blocks List: Only show all blocks if no dropdown is open */}
+          {!error && !showDepartments && (
             <div className="space-y-4">
               {sortedBlocks.map((block) => (
                 <Card key={block.id} className="bg-alabaster border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[96px] shadow-lg">
@@ -267,7 +269,7 @@ export default function BlockManager() {
                         <div className="flex items-center w-full min-h-[80px] gap-6">
                           {/* Block icon, name, and dropdown chevron aligned left */}
                           <div className="flex items-center gap-3 flex-1 ml-6">
-                            <div className="w-8 h-8 flex items-center justify-center font-semibold text-lg text-bronze">
+                            <div className="w-8 h-8 flex items-center justify-center font-semibold text-lg text-[#B85A1A]">
                               Block
                             </div>
                             {editingId === block.id ? (
@@ -277,22 +279,26 @@ export default function BlockManager() {
                             ) : (
                               <span className="text-lg text-deep-forest font-bold">{block.name}</span>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setShowDepartments(showDepartments === block.id ? null : block.id)}
-                              className="p-1.5 text-bronze hover:[&>svg]:text-alabaster"
-                            >
-                              {showDepartments === block.id ? (
-                                <ChevronDown className="w-7 h-7" />
-                              ) : (
-                                <ChevronRight className="w-6 h-6" />
-                              )}
-                            </Button>
+                              <button
+                                type="button"
+                                onClick={() => setShowDepartments(showDepartments === block.id ? null : block.id)}
+                                className="p-0 border-none outline-none bg-transparent focus:outline-none focus:ring-0"
+                                style={{ boxShadow: 'none' }}
+                              >
+                                {showDepartments === block.id ? (
+                                  <span className="w-8 h-8 flex items-center justify-center rounded-full transition-colors bg-transparent hover:bg-[#B85A1A] group">
+                                    <ChevronDown className="w-5 h-5 text-[#B85A1A] group-hover:text-alabaster transition-colors" />
+                                  </span>
+                                ) : (
+                                  <span className="w-8 h-8 flex items-center justify-center rounded-full transition-colors bg-transparent hover:bg-[#B85A1A] group">
+                                    <ChevronRight className="w-5 h-5 text-[#B85A1A] group-hover:text-alabaster transition-colors" />
+                                  </span>
+                                )}
+                              </button>
                           </div>
                           {/* Department tag aligned right */}
                           <div className="flex-shrink-0 mr-6">
-                            <Badge variant="outline" className="text-xs border-bronze/30 text-bronze">
+                            <Badge variant="outline" className="text-xs border-[#B85A1A]/30 text-[#B85A1A]">
                               {block.departments.length} departments
                             </Badge>
                           </div>
@@ -302,42 +308,89 @@ export default function BlockManager() {
                         {/* ...existing code... */}
                       </CardContent>
                     </div>
-                    {/* ...existing code... */}
                   </div>
-                  {showDepartments === block.id && (
-                    <div className="px-6 pb-4">
-                      <Separator className="mb-3" style={{ backgroundColor: '#EF842D' }} />
-                      <div>
-                        <Label className="text-sm font-medium">Departments in this Block:</Label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                          {block.departments.length > 0 ? (
-                            block.departments
-                              .filter(dept => dept != null) // Filter out null or undefined departments
-                              .sort((a, b) => {
-                                const nameA = a?.name || '';
-                                const nameB = b?.name || '';
-                                return nameA.localeCompare(nameB);
-                              })
-                              .map((dept) => (
-                                <div key={dept.id} className="flex items-center gap-2 p-2 bg-deep-forest/15 rounded-md">
-                                  <Building className="w-6 h-8 text-bronze" />
-                                  <div className="ml-2">
-                                    <span className="font-medium text-sm text-deep-forest">{dept.name}</span>
-                                    <p className="text-xs text-gray-600">
-                                      <span className="text-bronze">Floor {dept.floor}, Office No. {dept.officeNumber}</span>
-                                    </p>
-                                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Only show the expanded block if a dropdown is open */}
+          {!error && showDepartments && (
+            <div className="space-y-4">
+              {sortedBlocks
+                .filter(block => block.id === showDepartments)
+                .map((block) => (
+                  <Card key={block.id} className="bg-alabaster border border-deep-forest/20 hover:border-2 hover:border-[#EF842D] transition-colors min-h-[96px] shadow-lg">
+                    <div>
+                      <div className="flex-1">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center w-full min-h-[80px] gap-6">
+                            <div className="flex items-center gap-3 flex-1 ml-6">
+                              <div className="w-8 h-8 flex items-center justify-center font-semibold text-lg text-[#B85A1A]">
+                                Block
+                              </div>
+                              {editingId === block.id ? (
+                                <div className="text-lg font-medium text-deep-forest">
+                                  {block.name}
                                 </div>
-                              ))
-                          ) : (
-                            <p className="text-sm text-gray-500">No departments assigned to this block.</p>
-                          )}
+                              ) : (
+                                <span className="text-lg text-deep-forest font-bold">{block.name}</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setShowDepartments(null)}
+                                className="p-0 border-none outline-none bg-transparent focus:outline-none focus:ring-0"
+                                style={{ boxShadow: 'none' }}
+                              >
+                                <span className="w-9 h-9 flex items-center justify-center rounded-full transition-colors bg-transparent hover:bg-[#B85A1A] group">
+                                  <ChevronDown className="w-6 h-6 text-[#B85A1A] group-hover:text-alabaster transition-colors" />
+                                </span>
+                              </button>
+                            </div>
+                            <div className="flex-shrink-0 mr-6">
+                              <Badge variant="outline" className="text-xs border-[#B85A1A]/30 text-[#B85A1A]">
+                                {block.departments.length} departments
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {/* ...existing code... */}
+                        </CardContent>
+                      </div>
+                      <div className="px-8 pb-6">
+                        <Separator className="mb-6" style={{ backgroundColor: '#B85A1A' }} />
+                        <div>
+                          <Label className="text-sm font-medium">Departments in this Block:</Label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                            {block.departments.length > 0 ? (
+                              block.departments
+                                .filter(dept => dept != null)
+                                .sort((a, b) => {
+                                  const nameA = a?.name || '';
+                                  const nameB = b?.name || '';
+                                  return nameA.localeCompare(nameB);
+                                })
+                                .map((dept) => (
+                                  <div key={dept.id} className="flex items-center gap-2 p-2 bg-deep-forest/15 rounded-md">
+                                    <Building className="w-6 h-8 text-[#B85A1A]" />
+                                    <div className="ml-2">
+                                      <span className="font-medium text-sm text-deep-forest">{dept.name}</span>
+                                      <p className="text-xs text-gray-600">
+                                        <span className="text-[#B85A1A]">Floor {dept.floor}, Office No. {dept.officeNumber}</span>
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))
+                            ) : (
+                              <p className="text-sm text-gray-500">No departments assigned to this block.</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  )}
-                </Card>
-              ))}
+                  </Card>
+                ))}
             </div>
           )}
         </>
