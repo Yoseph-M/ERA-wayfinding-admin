@@ -51,7 +51,7 @@ function GeneralCommentList({ comments, onDelete }: { comments: GeneralComment[]
                 <span className="text-xxs text-[#B85A1A] font-semibold whitespace-nowrap mr-20">{new Date(comment.date).toLocaleDateString()}</span>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="bg-red-500 hover:bg-red-500">
+                    <Button variant="ghost" size="icon" className="bg-red-600 hover:bg-red-600">
                       <Trash2 className="w-4 h-4 text-white hover:text-white" />
                     </Button>
                   </AlertDialogTrigger>
@@ -139,7 +139,7 @@ function PersonnelCommentList({ comments, onDelete, showComments, setShowComment
                       <span className="text-xxs text-[#B85A1A] font-semibold whitespace-nowrap mr-20">{new Date(comment.feedback_date).toLocaleDateString()}</span>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="bg-red-500 hover:bg-red-500">
+                          <Button variant="ghost" size="icon" className="bg-red-600 hover:bg-red-600">
                             <Trash2 className="w-4 h-4 text-white hover:text-white " />
                           </Button>
                         </AlertDialogTrigger>
