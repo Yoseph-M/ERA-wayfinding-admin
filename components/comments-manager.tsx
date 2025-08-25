@@ -63,7 +63,7 @@ function GeneralCommentList({ comments, onDelete }: { comments: GeneralComment[]
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel className="hover:bg-deep-forest">Cancel</AlertDialogCancel>
+                      <AlertDialogCancel className="!bg-deep-forest !text-alabaster !shadow-none !ring-0 !filter-none">Cancel</AlertDialogCancel>
                       <AlertDialogAction onClick={() => onDelete(comment.id)} className="!bg-red-600 !text-white !shadow-none !ring-0 !filter-none">Delete</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -151,7 +151,7 @@ function PersonnelCommentList({ comments, onDelete, showComments, setShowComment
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel className="hover:bg-deep-forest">Cancel</AlertDialogCancel>
+                            <AlertDialogCancel className="!bg-deep-forest !text-alabaster !shadow-none !ring-0 !filter-none">Cancel</AlertDialogCancel>
                             <AlertDialogAction onClick={() => onDelete(comment.id)} className="!bg-red-600 !text-white !shadow-none !ring-0 !filter-none">Delete</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
