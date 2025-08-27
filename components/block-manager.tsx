@@ -167,7 +167,6 @@ export default function BlockManager() {
       alert(err.message || 'Failed to manage department')
     }
   }
-
   
 
   

@@ -542,7 +542,7 @@ export default function PersonnelManager() {
                         <Label className="text-deep-forest font-medium">Photo</Label>
                         {/* Only show avatar preview after image is uploaded/selected */}
                         {formData.photo && formData.photo !== '' && !photoError && (
-                          <div className="mt-2 mb-2 w-24 h-24 relative rounded-full overflow-hidden border border-deep-forest/30 flex items-center justify-center bg-white">
+                          <div className="mt-2 mb-2 w-24 h-24 relative rounded-full overflow-hidden border-4 border-bronze flex items-center justify-center bg-white shadow-lg">
                             <img
                               src={formData.photo}
                               alt="Personnel Photo"
@@ -681,18 +681,18 @@ export default function PersonnelManager() {
 
             {/* Personnel List */}
             {!editingId && filteredPersonnel.map((person) => (
-              <Card key={person.id} className="bg- alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-[#B85A1A] transition-colors min-h-[120px] shadow-lg flex items-center">
+              <Card key={person.id} className="bg- alabaster backdrop-blur-xl border border-deep-forest/20 hover:border-2 hover:border-bronze transition-colors min-h-[120px] shadow-lg flex items-center">
                 <div className="flex w-full min-h-[120px] items-center ml-6">
                   <div className="flex-1 flex items-center">
                     <div className="flex items-center gap-6 w-full">
-                      <div className="w-14 h-14 rounded-lg flex items-center justify-center">
+                      <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-deep-forest flex items-center justify-center bg-white shadow-lg">
                         {person.photo ? (
                           <div className="w-full h-full relative rounded-full overflow-hidden">
                             <Image
                               src={person.photo}
                               alt={person.fullName.en || "Personnel Photo"}
-                              layout="fill"
-                              objectFit="cover"
+                              fill
+                              style={{ objectFit: "cover" }}
                             />
                           </div>
                         ) : (

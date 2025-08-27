@@ -148,7 +148,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
             <Card>
               <CardHeader>
                 <CardTitle>System Settings</CardTitle>
-                <CardDescription>Configure system-wide settings and preferences</CardDescription>
+                                <CardDescription className="text-bronze">Configure system-wide settings and preferences</CardDescription>
               </CardHeader>
               <CardContent>
                 <SystemSettings />
